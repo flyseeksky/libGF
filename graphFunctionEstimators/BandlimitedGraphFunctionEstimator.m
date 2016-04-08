@@ -1,5 +1,5 @@
 classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
-	% 
+	% This is a comment
 	properties(Constant)
 	end
 	

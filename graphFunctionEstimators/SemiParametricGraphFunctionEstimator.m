@@ -1,5 +1,5 @@
 classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
-    %
+    % This was written by Vassilis
     properties(Constant)
     end
     
