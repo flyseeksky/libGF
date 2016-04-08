@@ -32,11 +32,17 @@ classdef LSGraphFunctionEstimator < GraphFunctionEstimator
             % Output:
             %       m_estimate -- matrix estimated signal; each column is a
             %                     valid estimated signal
+            if isempty(obj.graph) || isempty(obj.s_bandwidth)
+                error('Set underlying graph and bandwidth first')
+            end
+            
+            if ~isequaln(size(m_samples), size(m_positions))
+                error('LSEstimator:IllegalParameter','Paramter size not equal!')
+            end
             V = obj.graph.getLaplacianEigenvectors();
             B = obj.s_bandwidth;
             VB = V(:,1:B);
-            I = eye(N);
-            S = size(m_samples,1);  % each column is a sample
+            I = eye(obj.graph.getNumberOfVertices());
             for iSample = 1 : size(m_samples)
                 observedSignal = m_samples(:,iSample);
                 samplingSet = m_positions(:,iSample);
