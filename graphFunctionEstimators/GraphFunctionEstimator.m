@@ -1,5 +1,5 @@
 classdef GraphFunctionEstimator < Parameter
-	% 
+	% This class is cool
 	properties(Constant)
 	end
 	
