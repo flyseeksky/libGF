@@ -63,12 +63,60 @@ classdef TestLSEstimator < matlab.unittest.TestCase
                 'LSEstimator:IllegalParameter');
         end
         
-%         function testNanValues(tc)
-%             S = 7;
-%             m_positions = randperm(tc.N,S);
-%             m_samples = tc.graphSignal(m_positions);
-%             
-%         end
+        function testIllegalParamterSet(tc)
+            m_positions = rand(tc.N,1);
+            m_samples = rand(tc.N-1,1);
+            tc.LSEstimator.s_bandwidth = [];
+            tc.verifyError(@() tc.LSEstimator.estimate(m_samples, m_positions), ...
+                'LSEstimator:ParameterNotSet');
+        end
+        
+        % m_positions and graph are inconsistent
+        function testSampleGraphInconsistent(tc)
+            m_samples = rand(tc.N,1);
+            m_positions = randi(tc.N, tc.N, 1);
+            m_positions(1) = tc.N + 3;
+            tc.verifyError(@() tc.LSEstimator.estimate(m_samples, m_positions),...
+                'LSEstimator:SampleGraphInconsistent');
+        end
+        
+        % test correct output
+        function testOutput(tc)
+            V = tc.LSEstimator.graph.getLaplacianEigenvectors();
+            B = tc.LSEstimator.s_bandwidth;
+            VB = V(:,1:B);
+            
+            S = floor(tc.N*2/3);
+            m_positions = randperm(tc.N,S);
+            m_positions = m_positions(:);
+            m_samples = rand(S,1);
+            I = eye(tc.N);
+            Phi = I(m_positions,:);
+            
+            tc.verifyEqual(tc.LSEstimator.estimate(m_samples, m_positions),...
+                VB*( (Phi*VB)\m_samples) );
+        end
+        
+        % test vector input handling
+        function testVectorInput(tc)
+            V = tc.LSEstimator.graph.getLaplacianEigenvectors();
+            B = tc.LSEstimator.s_bandwidth;
+            VB = V(:,1:B);
+            
+            S = floor(tc.N*2/3);
+            COL = 5;
+            for iCol = 1 : COL
+                pos = randperm(tc.N,S); 
+                m_positions(:,iCol) = pos(:);
+                m_samples(:,iCol) = rand(S,1);
+                I = eye(tc.N);
+                Phi = I(m_positions(:,iCol),:);
+                fhat(:,iCol) = VB*( (Phi*VB)\m_samples(:,iCol));
+            end
+            
+            tc.verifyEqual(tc.LSEstimator.estimate(m_samples, m_positions),...
+                fhat );
+        end
     end
     
 end
