@@ -8,7 +8,7 @@ classdef NonParametricGraphFunctionEstimator< GraphFunctionEstimator
         c_stringToPrint  = {};
         c_patternToPrint = {};
     end
-    
+    %test commi
     properties
         ch_name = 'NONPARAMETRIC';
         m_kernels;   % N x N matrix containing the kernel function evalueated at each pair of nodes
@@ -46,7 +46,7 @@ classdef NonParametricGraphFunctionEstimator< GraphFunctionEstimator
             for realizationCounter = 1:s_numberOfRealizations
                 
                 m_subK=obj.m_kernels(m_positions(:,realizationCounter),m_positions(:,realizationCounter));
-                v_alphas=(m_subK+s_lambda*s_numberOfVertices*eye(size(m_subK)))\m_samples(:,realizationCounter);
+                v_alphas=(m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK)))\m_samples(:,realizationCounter);
                 m_estimate(:,realizationCounter) = obj.m_kernels(:,m_positions(:,realizationCounter))*v_alphas;
                 
                 
