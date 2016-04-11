@@ -78,10 +78,13 @@ classdef VariationMinimizationGraphFunctionEstimator< GraphFunctionEstimator
         end
         function m_delta=shrinkSingularValues(m_X,s_tao)
             [m_U,m_S,m_Q]=svd(m_X);
-            m_delta=m_U*shrinkElements(m_S)*(m_Q');
+            m_delta=m_U*shrinkElements(m_S,s_tao)*(m_Q');
         end
         function t=backtrackingX()
-            y=0;
+            t=0;
+        end
+        function t=backtrackingE()
+            t=0;
         end
     end
 end
