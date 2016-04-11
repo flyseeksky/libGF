@@ -69,6 +69,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         end
     end
     methods (Static)
+        %f
         function m_laplacian=graph_lapl_upd(s_alpha,s_beta,m_estimated,m_duplication)
             %arg min a*vec(Y*Y')'*Mdup*vech(L)+b*vech(L)'*Mdup'*Mdup*vech(L)
             %wrt vech(L)
