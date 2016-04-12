@@ -44,8 +44,8 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             %alternating optimization
             v_obj=zeros(s_niter,1);
             for t=1:s_niter
-                m_laplacian=GraphLearningSmoothSignalGraphGenerator.graph_lapl_upd(s_alpha,s_beta,m_estimated,m_dubplication);
-                m_estimated=GraphLearningSmoothSignalGraphGenerator.signal_upd(m_observed,m_laplacian,s_alpha,m_missingValuesIndicator);
+                m_laplacian=GraphLearningSmoothSignalGraphGenerator.graphLaplUpd(s_alpha,s_beta,m_estimated,m_dubplication);
+                m_estimated=GraphLearningSmoothSignalGraphGenerator.signalUpd(m_observed,m_laplacian,s_alpha,m_missingValuesIndicator);
                 %contains the objective values of the function
                 v_obj(t)=(norm(m_missingValuesIndicator.*(m_observed-m_estimated),'fro')^2)+s_alpha*trace((m_estimated)'*m_laplacian*(m_estimated))+s_beta*norm(m_laplacian,'fro')^2;
                 if t>1&&(0<(-v_obj(t)+v_obj(t-1)))&&((-v_obj(t)+v_obj(t-1))<10^-6)
@@ -70,7 +70,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
     end
     methods (Static)
         %f
-        function m_laplacian=graph_lapl_upd(s_alpha,s_beta,m_estimated,m_duplication)
+        function m_laplacian=graphLaplUpd(s_alpha,s_beta,m_estimated,m_duplication)
             %arg min a*vec(Y*Y')'*Mdup*vech(L)+b*vech(L)'*Mdup'*Mdup*vech(L)
             %wrt vech(L)
             %st A*vech(L)=0;
@@ -143,7 +143,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             %B*X<=0
         end
         
-        function m_estimated=signal_upd(m_H,m_laplacian,s_alpha,m_w)
+        function m_estimated=signalUpd(m_H,m_laplacian,s_alpha,m_w)
             %min norm(W*(X-Y),'fro')^2+a*tr(Y'*L*Y)
             %wrt Y
             %convex has closed form solution
