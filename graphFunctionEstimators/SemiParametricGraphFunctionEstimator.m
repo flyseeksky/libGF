@@ -71,8 +71,8 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
                 m_subK=obj.m_kernels(m_positions(:,realizationCounter),m_positions(:,realizationCounter));
                 m_P=m_SubBasisSamp*((m_SubBasisSamp'*m_SubBasisSamp)\(m_SubBasisSamp'));
                 m_H=(eye(size(m_P))-m_P)'*(eye(size(m_P))-m_P);
-                v_alphas=pinv(m_subK'*(m_H*m_subK-s_lambda*s_numberOfVertices*eye(size(m_subK))))*(m_subK'*(m_H*m_samples(:,realizationCounter)));
-                v_betas=(m_SubBasisSamp'*m_SubBasisSamp)\m_SubBasisSamp'*(m_samples(:,realizationCounter)-m_subK*v_alphas);
+                v_alphas=pinv(m_subK'*(m_H*m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK))))*(m_subK'*(m_H*m_samples(:,realizationCounter)));
+                v_betas=(m_SubBasisSamp'*m_SubBasisSamp)\(m_SubBasisSamp'*(m_samples(:,realizationCounter)-m_subK*v_alphas));
                 m_estimate(:,realizationCounter) = obj.m_kernels(:,m_positions(:,realizationCounter))*v_alphas+ m_SubBasis*v_betas;
             end
             

@@ -30,9 +30,7 @@ classdef SemiParametricGraphFunctionGenerator  < GraphFunctionGenerator
 			
 			if nargin < 2
 				s_numberOfRealizations = 1;
-			end
-			
-			
+            end			
 			m_B = obj.m_parametricBasis;
 			M_graphFunction =obj.graphFunctionGenerator.realization(s_numberOfRealizations) +m_B*randn(size(m_B,2),s_numberOfRealizations);
 			
