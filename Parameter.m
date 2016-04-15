@@ -7,6 +7,7 @@ classdef Parameter
 	% called without any parameter.
         %
         % 
+
 	properties(Abstract)
 		% the n-th property of an object of class Parameter will be printed
 		% as   my_sprintf( obj.c_patternToPrint{n} , obj.c_stringToPrint{n} , getfield(obj,obj.c_parsToPrint{n}) );		
