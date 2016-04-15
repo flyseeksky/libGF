@@ -235,7 +235,4 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             v_vec = reshape(m_X,m*n,1);
         end
     end
-    
-    
-    
 end
