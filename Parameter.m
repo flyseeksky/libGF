@@ -5,7 +5,7 @@ classdef Parameter
 	%
 	% all classes extending Parameter shall allow their constructors to be
 	% called without any parameter.
-	
+        %
 	
 	properties(Abstract)
 		% the n-th property of an object of class Parameter will be printed
