@@ -1,11 +1,11 @@
 function simpleSimulation
 
-initializeSimGF;
+% initializeSimGF;
 
 % 1. define graph function generator
-graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability',.8,'s_numberOfVertices',100);
+graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.3,'s_numberOfVertices',100);
 graph = graphGenerator.realization;
-functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',10);
+functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
 
 % 2. define graph function sampler
 sampler = UniformGraphFunctionSampler('s_numberOfSamples',40,'s_SNR',20);
