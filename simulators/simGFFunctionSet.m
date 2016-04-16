@@ -216,13 +216,19 @@ classdef simGFFunctionSet
 				mkdir(obj.folder);
 			end
 			
+			funname =sprintf('%s%d',obj.funbasename,fgnum);
+			if ~ismethod(obj,funname)
+				error(sprintf('Simulation %d does not exist',fgnum));
+			end
 			
 			if niter==-1
 				% load results from previous executions
+				if (~exist([obj.filename(fgnum) '.mat'],'file'))
+					error(sprintf('You must run the simulation first. Use simt(0,%d)',fgnum));
+				end
 				load(obj.filename(fgnum),'F');
 			else
-				% call the function
-				funname =sprintf('%s%d',obj.funbasename,fgnum);
+				% call the function				
 				F=feval(funname,obj,niter);
 				%F=obj.compute_fig_1;
 				% save results
