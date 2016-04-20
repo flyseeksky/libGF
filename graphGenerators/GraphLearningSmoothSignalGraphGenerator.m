@@ -52,8 +52,8 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
                     break;
                 end
             end
-%             figure(1);
-%             semilogy(1:t,v_obj);
+            % figure(1);
+            % semilogy(1:t,v_obj);
             %keep only meaningful values
             %Prune insignificant edges
             s_alpha=(m_laplacian>-10^-4);
@@ -61,9 +61,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             s_alpha=~s_alpha;
             c=s_alpha|s_beta;
             m_laplacian(~c)=0;
-            
-            
-            
+                          
             m_adjacency=Graph.createAdjacencyFromLaplacian(m_laplacian);
             graph = Graph('m_adjacency',m_adjacency);
         end
@@ -71,12 +69,12 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
     methods (Static)
         %f
         function m_laplacian=graphLaplUpd(s_alpha,s_beta,m_estimated,m_duplication)
-            %arg min a*vec(Y*Y')'*Mdup*vech(L)+b*vech(L)'*Mdup'*Mdup*vech(L)
-            %wrt vech(L)
-            %st A*vech(L)=0;
+            % arg min a*vec(Y*Y')'*Mdup*vech(L)+b*vech(L)'*Mdup'*Mdup*vech(L)
+            % wrt vech(L)
+            % st A*vech(L)=0;
             %   B*vech(L)<=0;
             k=size(m_estimated,1);
-            %Is used for the equality constraints of the opt problem
+            % Is used for the equality constraints of the opt problem
             m_A=GraphLearningSmoothSignalGraphGenerator.getLinEqualities(rand(size(m_estimated,1)));
             m_B=GraphLearningSmoothSignalGraphGenerator.getLinInequalities(rand(size(m_estimated,1)));
             s_n=size(GraphLearningSmoothSignalGraphGenerator.vech(rand(size(m_estimated,1))),1);
@@ -91,14 +89,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         end
         
         function v=getDiagIndices(n)
-            v=zeros(n,1);
-            for i=1:n
-                if i==1
-                    v(i)=1;
-                else
-                    v(i)=i+v(i-1);
-                end
-            end
+            v = cumsum(1:n);
         end
         
         function m_A=getLinEqualities(m_laplacian)
@@ -128,34 +119,48 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         end
         
         function m_B=getLinInequalities(m_laplacian)
-            %B contains info about the Lij <= of zero
-            %so must contain a line for each of these elements of X
-            X=GraphLearningSmoothSignalGraphGenerator.vech(m_laplacian);
-            v=GraphLearningSmoothSignalGraphGenerator.getDiagIndices(size(m_laplacian,1));
-            m_B=zeros(size(X,1)-size(m_laplacian,1),size(X,1));
-            for i=1:size(X,1)
-                if ismember(i,v)
-                    i=i-1;
+            % B contains info about the Lij <= of zero
+            % so must contain a line for each of these elements of X
+%             X=GraphLearningSmoothSignalGraphGenerator.vech(m_laplacian);
+%             v=GraphLearningSmoothSignalGraphGenerator.getDiagIndices(size(m_laplacian,1));
+%             m_B=zeros(size(X,1)-size(m_laplacian,1),size(X,1));
+%             for i=1:size(X,1)
+%                 if ismember(i,v)
+%                     i=i-1;
+%                 else
+%                     m_B(i,i)=1;
+%                 end
+%             end
+            N = size(m_laplacian,1);
+            m_B = zeros(N*(N-1)/2, N*(N+1)/2);
+            diagIndex = 1 + [0 cumsum(N:-1:2)];
+            row = 1;
+            for idx = 1 : N*(N+1)/2
+                if any(idx == diagIndex)
+                    continue;
                 else
-                    m_B(i,i)=1;
+                    m_B(row, idx) = 1;
+                    row = row + 1;
                 end
             end
-            %B*X<=0
         end
         
-        function m_estimated=signalUpd(m_H,m_laplacian,s_alpha,m_w)
-            %min norm(W*(X-Y),'fro')^2+a*tr(Y'*L*Y)
-            %wrt Y
-            %convex has closed form solution
-            m_estimated=zeros(size(m_H));
-            if m_w==ones(size(m_w))
-                m_estimated=(eye(size(m_laplacian))+s_alpha*m_laplacian)\m_H;
+        function m_estimated=signalUpd(m_X,m_laplacian,s_alpha,m_W)
+            % min norm(W*(X-Y),'fro')^2+a*tr(Y'*L*Y)
+            % wrt Y
+            % convex has closed form solution
+            % m_W indicate positions of missing values
+            m_estimated = zeros(size(m_X));
+            if m_W == ones(size(m_W))
+                m_estimated = (eye(size(m_laplacian))+s_alpha*m_laplacian)\m_X;
             else
                 for m=1: size(m_estimated,2)
-                    m_estimated(:,m)=(diag(m_w(:,1))+s_alpha*m_laplacian)\(diag(m_w(:,1))*m_H(:,m));
+                    m_estimated(:,m) = (diag(m_W(:,1)) + ...
+                        s_alpha*m_laplacian) \ (diag(m_W(:,1))*m_X(:,m));
                 end
             end
         end
+        
         function L=my_ivech(x,M)
             K2=size(x,1);
             K=(-1+sqrt(1+8*K2))/2;
@@ -163,43 +168,11 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             vec=M*x;
             L=reshape(vec,K,K);
         end
-        
-        function m_matrixData=ivech(v_stackedData)
-            %converts the vectorized form of lower triangular part of a matrix back
-            %to the initial matrix
-            if size(v_stackedData,2)>size(v_stackedData,1)
-                v_stackedData=v_stackedData';
-            end
             
-            if size(v_stackedData,2)~=1
-                error('STACKED_DATA must be a column vector.')
-            end
-            
-            K2=size(v_stackedData,1);
-            K=(-1+sqrt(1+8*K2))/2;
-            
-            if floor(K)~=K
-                error(['The number of elemeents in STACKED_DATA must be conformable to' ...
-                    'the inverse vech operation.'])
-            end
-            % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            % % %Input Checking
-            % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            
-            % % %Initialize the output data
-            m_matrixData=zeros(K);
-            
-            % % %Use a logical trick to inverse the vech
-            pl=tril(true(K));
-            m_matrixData(pl)=v_stackedData;
-            diag_matrixData=diag(diag(m_matrixData));
-            m_matrixData=m_matrixData+m_matrixData'-diag_matrixData;
-        end
-        
         function m_dublication=dup(m_laplacian)
-            %converts the vectorized form of lower triangular
-            %part of L to the vectorized form of the full matrix
-            %M*vech(L)=vec(L)
+            % converts the vectorized form of lower triangular
+            % part of L to the vectorized form of the full matrix
+            % M*vech(L)=vec(L)
             
             X=GraphLearningSmoothSignalGraphGenerator.vech(m_laplacian);
             m_dublication=zeros(size(m_laplacian,1)^2,size(X,1));
@@ -223,16 +196,69 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             end
         end
         
-        function v_vech=vech(m_X)
-            %contains the vectorized form of lower triangular part of m_X
-            m_Y=m_X';
-            v_vech= m_Y(triu(true(size(m_Y))));
+        function M = getMdup(s_laplacianSize)
+            % generate duplication matrix M such that
+            % M * vech(L) = vec(L)
+            N = s_laplacianSize;
+            vSize = N^2;
+            vhSize = N*(N+1)/2;
+            M = zeros(vSize,vhSize);
+            
+            % convert index of vec(L) into coordinates
+            % then convert coordinates into index of vech(L)
+            colIndex = [0 cumsum(N:-1:1)];
+            for idx = 1:vSize
+                coord = [mod(idx-1, N)+1, floor((idx-1)/N)+1];
+                row = max(coord);
+                col = min(coord);
+                idxh = colIndex(col) + row - col + 1;
+                M(idx, idxh) = 1;
+            end
         end
         
-        function v_vec=vec(m_X)
-            %contains the vectorized form of m_X
-            [m,n] = size(m_X);
-            v_vec = reshape(m_X,m*n,1);
+        function m_matrixData=ivech(v_stackedData)
+            % converts the vectorized form of lower triangular part of a matrix back
+            % to the initial matrix
+            %if size(v_stackedData,2)>size(v_stackedData,1)
+            %    v_stackedData=v_stackedData';
+            %end
+            %if size(v_stackedData,2)~=1
+            %    error('STACKED_DATA must be a column vector.')
+            %end
+            v_stackedData = v_stackedData(:);
+            
+            len = length(v_stackedData);
+            N = (-1+sqrt(1+8*len))/2;
+            
+            if floor(N)~=N
+                error(['The number of elemeents in STACKED_DATA must be conformable to' ...
+                    'the inverse vech operation.'])
+            end
+            % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % % %Input Checking
+            % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            % % %Initialize the output data
+            m_matrixData=zeros(N);
+            
+            % % %Use a logical trick to inverse the vech
+            pl=tril(true(N));
+            m_matrixData(pl)=v_stackedData;
+            diag_matrixData=diag(diag(m_matrixData));
+            m_matrixData=m_matrixData+m_matrixData'-diag_matrixData;
+        end
+        
+        function v_vech = vech(m_X)
+            % contains the vectorized form of lower triangular part of m_X
+            % m_Y=m_X';
+            v_vech = m_X(tril(true(size(m_X))));
+        end
+        
+        function v_vec = vec(m_X)
+            % contains the vectorized form of m_X
+            % [m,n] = size(m_X);
+            % v_vec = reshape(m_X,m*n,1);
+            v_vec = m_X(:);
         end
     end
 end
