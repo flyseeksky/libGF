@@ -4,17 +4,17 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 	end
 	
 	properties % Required by superclass Parameter
-		c_parsToPrint    = {};
-		c_stringToPrint  = {};
-		c_patternToPrint = {};
+		c_parsToPrint    = {'ch_name','s_bandwidth'};
+		c_stringToPrint  = {'','ASS. BW'};
+		c_patternToPrint = {'%s%s','%s = %d'};
 	end
 	
 	properties
 		ch_name = 'BANDLIMITED';
 		m_laplacianEigenvectors;   % N x s_bandwidth matrix with the first
-		% s_bandwidth eigenvectors of the
-		% Laplacian
-		
+		s_bandwidth = []%    If defined, then only the first S_BANDWIDTH columns 
+		                %    of m_laplacianEigenvectors are considered as
+		                %    basis		
 	end
 	
 	methods
@@ -43,9 +43,16 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			%                           function
 			%
 			
+			if ~isempty(obj.s_bandwidth)
+				if( obj.s_bandwidth > size(obj.m_laplacianEigenvectors,2) )
+					error('s_bandwidth cannot be greater than the number of columns provided in m_laplacianEigenvectors');
+				end
+				obj.m_laplacianEigenvectors = obj.m_laplacianEigenvectors(:,obj.s_bandwidth);
+			end
+			
 			s_numberOfVertices = size(obj.m_laplacianEigenvectors,1);
 			s_numberOfRealizations = size(m_samples,2);
-			
+						
 			m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
 			for realizationCounter = 1:s_numberOfRealizations
 				m_PhiB = obj.m_laplacianEigenvectors( m_positions(:,realizationCounter) , : );

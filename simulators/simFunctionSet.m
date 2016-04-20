@@ -1,4 +1,4 @@
-classdef simGFFunctionSet
+classdef simFunctionSet
 	%
 	% An object of this class is a file which contains multiple functions
 	% whose name starts by the string in funbasename.
@@ -19,7 +19,7 @@ classdef simGFFunctionSet
 	
 	methods(Access=public)
 		
-		function obj = simGFFunctionSet
+		function obj = simFunctionSet
 			obj.classname=class(obj);
 			obj.figbasename = [obj.folder obj.classname ];
 		end
