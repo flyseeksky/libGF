@@ -60,12 +60,9 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         end
         
         function m_A = getA(N)
-            m_A = zeros(N, N*(N+1)/2);
+            m_A = zeros(1, N*(N+1)/2);
             v_diagIndex = GraphLearningSmoothSignalGraphGenerator.getDiagIndexInVech(N);
-            for row = 1 : N
-                col = v_diagIndex(row);
-                m_A(row, col) = 1;
-            end
+            m_A(v_diagIndex) = 1;
         end
         
         function m_B = getB(N)
