@@ -18,12 +18,15 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         m_missingValuesIndicator;   %is a matrix with one if the corresponding entry in m_observed is
                                     %observed and 0 otherwise. If [] is used then assumed that all values observed
     end
+    
+    
     methods
         function obj = GraphLearningSmoothSignalGraphGenerator(varargin)
             % Constructor
             obj@GraphGenerator(varargin{:});
             
         end
+        
         function [graph,m_estimated] = realization(obj)
             %initialization
             m_missingValuesIndicator=obj.m_missingValuesIndicator;
@@ -65,31 +68,67 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             m_adjacency=Graph.createAdjacencyFromLaplacian(m_laplacian);
             graph = Graph('m_adjacency',m_adjacency);
         end
+        
+        function m_L = test(obj)
+            m_L = obj.learnLaplacian(obj.m_observed, obj.s_alpha, obj.s_beta);
+        end
     end
+    
+    
     methods (Static)
         %f
-        function m_laplacian=graphLaplUpd(s_alpha,s_beta,m_estimated,m_duplication)
+        function m_laplacian=graphLaplUpd(s_alpha,s_beta,m_observed,m_duplication)
             % arg min a*vec(Y*Y')'*Mdup*vech(L)+b*vech(L)'*Mdup'*Mdup*vech(L)
             % wrt vech(L)
             % st A*vech(L)=0;
             %   B*vech(L)<=0;
-            k=size(m_estimated,1);
+            k=size(m_observed,1);
             % Is used for the equality constraints of the opt problem
-            m_A=GraphLearningSmoothSignalGraphGenerator.getLinEqualities(rand(size(m_estimated,1)));
-            m_B=GraphLearningSmoothSignalGraphGenerator.getLinInequalities(rand(size(m_estimated,1)));
-            s_n=size(GraphLearningSmoothSignalGraphGenerator.vech(rand(size(m_estimated,1))),1);
+            m_A=GraphLearningSmoothSignalGraphGenerator.getLinEqualities(rand(size(m_observed,1)));
+            m_B=GraphLearningSmoothSignalGraphGenerator.getLinInequalities(rand(size(m_observed,1)));
+            s_n=size(GraphLearningSmoothSignalGraphGenerator.vech(rand(size(m_observed,1))),1);
             cvx_begin quiet
             variable v(s_n)
-            minimize( s_alpha*vec((m_estimated)*(m_estimated)')'*m_duplication*v+s_beta*v'*(m_duplication')*m_duplication*v)
+            minimize( s_alpha*vec((m_observed)*(m_observed)')'*m_duplication*v+s_beta*v'*(m_duplication')*m_duplication*v)
             subject to
-            m_A*v==[k;zeros(size(m_estimated,1),1)];
+            m_A*v==[k;zeros(size(m_observed,1),1)];
             m_B*v<=0;
             cvx_end
             m_laplacian=GraphLearningSmoothSignalGraphGenerator.my_ivech(v,m_duplication);
         end
         
+        function m_laplacian = learnLaplacian(m_observed, s_alpha, s_beta)
+            % learning laplacian matrix L by alternating minimization
+            % this is the first step, i.e. fix Y minimize w.r.t L
+            % 
+            N = size(m_observed,1); % number of nodes
+            Y = m_observed;         % observed signals, in columns
+            M = GraphLearningSmoothSignalGraphGenerator.getMdup(N);
+            m_A = GraphLearningSmoothSignalGraphGenerator.getA(N);
+            m_B = GraphLearningSmoothSignalGraphGenerator.getB(N);
+            s_length = N*(N+1)/2;
+            
+            cvx_begin quiet
+                variable vech_L(s_length) 
+                minimize( s_alpha * vec(Y*Y')' * M * vech_L + ...
+                    s_beta * vech_L' * M' * M * vech_L )
+                subject to
+                    m_A * vech_L == N;
+                    m_B * vech_L <= 0;
+            cvx_end
+            
+            m_laplacian = GraphLearningSmoothSignalGraphGenerator.ivech(vech_L);
+        end
+        
         function v=getDiagIndices(n)
-            v = cumsum(1:n);
+            v=zeros(n,1); 
+            for i=1:n 
+                if i==1 
+                    v(i)=1; 
+                else 
+                    v(i)=i+v(i-1); 
+                end 
+            end 
         end
         
         function m_A=getLinEqualities(m_laplacian)
@@ -121,19 +160,32 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         function m_B=getLinInequalities(m_laplacian)
             % B contains info about the Lij <= of zero
             % so must contain a line for each of these elements of X
-%             X=GraphLearningSmoothSignalGraphGenerator.vech(m_laplacian);
-%             v=GraphLearningSmoothSignalGraphGenerator.getDiagIndices(size(m_laplacian,1));
-%             m_B=zeros(size(X,1)-size(m_laplacian,1),size(X,1));
-%             for i=1:size(X,1)
-%                 if ismember(i,v)
-%                     i=i-1;
-%                 else
-%                     m_B(i,i)=1;
-%                 end
-%             end
-            N = size(m_laplacian,1);
+            X=GraphLearningSmoothSignalGraphGenerator.vech(m_laplacian);
+            v=GraphLearningSmoothSignalGraphGenerator.getDiagIndices(size(m_laplacian,1));
+            m_B=zeros(size(X,1)-size(m_laplacian,1),size(X,1));
+            for i=1:size(X,1)
+                if ismember(i,v)
+                    i=i-1;
+                else
+                    m_B(i,i)=1;
+                end
+            end
+        end
+        
+        function m_A = getA(N)
+            m_A = zeros(N, N*(N+1)/2);
+            v_diagIndex = GraphLearningSmoothSignalGraphGenerator.getDiagIndexInVech(N);
+            for row = 1 : N
+                col = v_diagIndex(row);
+                m_A(row, col) = 1;
+            end
+        end
+        
+        function m_B = getB(N)
+            % get matrix B
+            % pick all the off-diagonal entries from vech(L)
             m_B = zeros(N*(N-1)/2, N*(N+1)/2);
-            diagIndex = 1 + [0 cumsum(N:-1:2)];
+            diagIndex = GraphLearningSmoothSignalGraphGenerator.getDiagIndexInVech(N);
             row = 1;
             for idx = 1 : N*(N+1)/2
                 if any(idx == diagIndex)
@@ -143,6 +195,12 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
                     row = row + 1;
                 end
             end
+        end
+        
+        function v_diagIndex = getDiagIndexInVech(N)
+            % for a graph of given size N
+            % find the index of diagonal elements in vector vech(L)
+            v_diagIndex = 1 + [0 cumsum(N:-1:2)];
         end
         
         function m_estimated=signalUpd(m_X,m_laplacian,s_alpha,m_W)
