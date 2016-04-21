@@ -11,7 +11,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
     
     properties
         m_observed; %contains the observed signals
-        s_niter;    %maximum number of iterations
+        s_maxIter;    %maximum number of iterations
         s_alpha;
         s_beta; %positive regularization parameters0000......
         
@@ -28,7 +28,8 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         end
         
         function graph = realization(obj)
-            L = obj.learnLaplacian(obj.m_observed, obj.s_alpha, obj.s_beta);              
+            L = obj.learnLaplacian(obj.m_observed, obj.s_alpha, obj.s_beta, ...
+				obj.s_maxIter);              
             m_adjacency=Graph.createAdjacencyFromLaplacian(L);
             graph = Graph('m_adjacency',m_adjacency);
         end
@@ -36,27 +37,42 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
     
     
     methods (Static)
-        function m_laplacian = learnLaplacian(m_observed, s_alpha, s_beta)
+        function m_laplacian = learnLaplacian(m_observed, s_alpha, s_beta, s_maxIter)
             % learning laplacian matrix L by alternating minimization
             % this is the first step, i.e. fix Y minimize w.r.t L
             % 
             N = size(m_observed,1); % number of nodes
-            Y = m_observed;         % observed signals, in columns
+            X = m_observed;         % observed signals, in columns
+			Y = X;
             M = GraphLearningSmoothSignalGraphGenerator.getMdup(N);
             m_A = GraphLearningSmoothSignalGraphGenerator.getA(N);
             m_B = GraphLearningSmoothSignalGraphGenerator.getB(N);
             s_length = N*(N+1)/2;
+			
+            history = NaN(s_maxIter, 1);
+			for iter = 1 : s_maxIter
+                Y_old = Y;
+                
+				cvx_begin quiet
+				variable vech_L(s_length)
+				minimize( s_alpha * vec(Y*Y')' * M * vech_L + ...
+					s_beta * vech_L' * M' * M * vech_L )
+				subject to
+				m_A * vech_L == N;
+				m_B * vech_L <= 0;
+				cvx_end
+				
+				m_laplacian = GraphLearningSmoothSignalGraphGenerator.ivech(vech_L);
+				Y = (eye(size(m_laplacian))+s_alpha*m_laplacian) \ X;
+				
+                history(iter) = norm(Y - Y_old, 'fro');
+				if history(iter) < 1e-4
+					break;
+				end
+			end
             
-            cvx_begin quiet
-                variable vech_L(s_length) 
-                minimize( s_alpha * vec(Y*Y')' * M * vech_L + ...
-                    s_beta * vech_L' * M' * M * vech_L )
-                subject to
-                    m_A * vech_L == N;
-                    m_B * vech_L <= 0;
-            cvx_end
-            
-            m_laplacian = GraphLearningSmoothSignalGraphGenerator.ivech(vech_L);
+            plot(history)
+            title('obj history')
         end
         
         function m_A = getA(N)
@@ -79,6 +95,14 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
                     row = row + 1;
                 end
             end
+		end
+		
+		function m_estimated=signalUpd(m_H,m_laplacian,s_alpha)
+            %min norm(W*(X-Y),'fro')^2+a*tr(Y'*L*Y)
+            %wrt Y
+            %convex has closed form solution
+            m_estimated=zeros(size(m_H));
+                m_estimated=(eye(size(m_laplacian))+s_alpha*m_laplacian)\m_H;
         end
         
         function v_diagIndex = getDiagIndexInVech(N)
