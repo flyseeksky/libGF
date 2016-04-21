@@ -2,13 +2,16 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {};
-		c_stringToPrint  = {};
-		c_patternToPrint = {};
+        c_parsToPrint  = {'ch_name'};
+		c_stringToPrint  = {''};
+		c_patternToPrint = {'%s%s'};
     end
     
     properties
-        m_kernel
+		ch_name = 'Multi-kernel RR';
+        m_kernel   %  N x N x P tensor, where 
+		           %       N: number of vertices
+				   %       P: number of kernels
         s_mu
     end
     
