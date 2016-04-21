@@ -69,8 +69,16 @@ classdef SemiParametricGraphFunctionEpsilonInsesitiveEstimator< GraphFunctionEst
                 %find appropriate subbasis
                 m_SubBasis=obj.get_proper_basis(m_positions(:,realizationCounter) );
                 m_SubBasisSamp=m_SubBasis(m_positions(:,realizationCounter),:);
+                %   [C,IA,IC] = UNIQUE(A,'rows') also returns index vectors IA and IC such
+                %   that C = A(IA,:) and A = C(IC,:). 
+                [m_SubBasisSamp,v_iA,v_iC]=unique(m_SubBasisSamp','rows');
+                m_SubBasisSamp=m_SubBasisSamp';
+                m_SubBasis=m_SubBasis(:,v_iA);
+                
+                %find subKernel
                 m_subK=obj.m_kernels(m_positions(:,realizationCounter),m_positions(:,realizationCounter));
                 s_sizeOfBasis=size(m_SubBasisSamp,2);
+                %quadprog
                 %%
                 cvx_begin quiet
                 variables v_alphas(s_numberOfSampledVertices) v_betas(s_sizeOfBasis) v_ksi(s_numberOfSampledVertices) v_ksi_tilda(s_numberOfSampledVertices)

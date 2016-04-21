@@ -43,6 +43,7 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
             if(exist('ind')~=0)
                 m_basisSamp=m_basisSamp(:,ind);
             end
+            
         end
         function m_estimate = estimate(obj,m_samples,m_positions,s_lambda)
             %
@@ -62,21 +63,30 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
             
             s_numberOfVertices = size(obj.m_kernels,1);
             s_numberOfRealizations = size(m_samples,2);
-            
+            %s_epsilon is used to invert a singular subBasis
+            s_epsilon=10^-10;
             m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
             for realizationCounter = 1:s_numberOfRealizations
                 %find appropriate subbasis
                 m_SubBasis=obj.get_proper_basis(m_positions(:,realizationCounter) );
                 m_SubBasisSamp=m_SubBasis(m_positions(:,realizationCounter),:);
+                %   [C,IA,IC] = UNIQUE(A,'rows') also returns index vectors IA and IC such
+                %   that C = A(IA,:) and A = C(IC,:). 
+                [m_SubBasisSamp,v_iA,v_iC]=unique(m_SubBasisSamp','rows');
+                m_SubBasisSamp=m_SubBasisSamp';
+                m_SubBasis=m_SubBasis(:,v_iA);
+                r=rank(m_SubBasisSamp);
+                %find subKernel
                 m_subK=obj.m_kernels(m_positions(:,realizationCounter),m_positions(:,realizationCounter));
-                m_P=m_SubBasisSamp*((m_SubBasisSamp'*m_SubBasisSamp)\(m_SubBasisSamp'));
+
+                m_P=m_SubBasisSamp*((m_SubBasisSamp'*m_SubBasisSamp+eye(size(m_SubBasisSamp,2))*s_epsilon)\(m_SubBasisSamp'));
                 m_H=(eye(size(m_P))-m_P)'*(eye(size(m_P))-m_P);
                 v_alphas=pinv(m_subK'*(m_H*m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK))))*(m_subK'*(m_H*m_samples(:,realizationCounter)));
                 v_betas=(m_SubBasisSamp'*m_SubBasisSamp)\(m_SubBasisSamp'*(m_samples(:,realizationCounter)-m_subK*v_alphas));
                 m_estimate(:,realizationCounter) = obj.m_kernels(:,m_positions(:,realizationCounter))*v_alphas+ m_SubBasis*v_betas;
             end
             
-            
+          
         end
         
     end
