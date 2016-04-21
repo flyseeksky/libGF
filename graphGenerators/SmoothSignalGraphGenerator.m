@@ -17,8 +17,9 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
     end
     
     properties(Constant)
-        ch_name = 'Graph-Learning-For-Smooth-Signal';
+        ch_name = 'Learn Graph from signals';
 		DEBUG = true; % set this paramter to true for debug information
+        CVX = false;  % set CVX=true to use cvx for solving this problem
     end
     
     properties
@@ -54,36 +55,51 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
             m_A = obj.getA(N);
             m_B = obj.getB(N);
             lengthVech = N*(N+1)/2;
+            
+            % for quadratic programming
+            H = obj.s_beta/2 * (M'*M);
+            A = m_B; b = zeros(N*(N-1)/2,1);
+            Aeq = m_A; beq = zeros(N+1,1);
 			
             history = NaN(obj.s_maxIter, 1);    % record objective value
 			for iter = 1 : obj.s_maxIter
                 Y_old = Y;
                 
-				cvx_begin quiet
-				variable vech_L(lengthVech)
-				minimize( obj.s_alpha * vec(Y*Y')' * M * vech_L + ...
-					obj.s_beta * vech_L' * (M'*M) * vech_L )
-				subject to
-				m_A * vech_L == [zeros(N,1); N];
-				m_B * vech_L <= 0;
-				cvx_end
+                % 1. minimization wrt L
+                if obj.CVX  % use CVX to solve L minimization problem
+                    cvx_begin quiet
+                    variable vech_L(lengthVech)
+                    minimize( obj.s_alpha * vec(Y*Y')' * M * vech_L + ...
+                        obj.s_beta * vech_L' * (M'*M) * vech_L )
+                    subject to
+                    m_A * vech_L == [zeros(N,1); N];
+                    m_B * vech_L <= 0;
+                    cvx_end
+                else
+                    % update quadratic programming paramter
+                    W = Y*Y'; w = W(:);
+                    f = obj.s_alpha*M'*w;
+                    vech_L = quadprog(H,f,A,b,Aeq,beq);
+                end
 				
+                % 2. minimization wrt Y
 				m_laplacian = obj.unvech(vech_L);
 				Y = (eye(size(m_laplacian))+obj.s_alpha*m_laplacian) \ X;
-
+                
+                % print debug information
                 history(iter) = norm(Y - Y_old, 'fro');
-				if history(iter) < 1e-4
-					break;
-				end
-				
-				if obj.DEBUG
+                if obj.DEBUG
 					fprintf('Iterations:%2d \tobjective value: %3.2f\n',...
 						iter, history(iter) );
 				end
+                
+				if history(iter) < 1e-4
+					break;
+                end
 			end
             % if DEBUG = true, plot the history of objective value
 			% set DEBUg = false to suppress this output
-			if obj.DEBUG
+			if obj.DEBUG && ~isempty(history)
 				figure(101)
 				plot(history)
 				xlabel('iterations')
