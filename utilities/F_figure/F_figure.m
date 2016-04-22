@@ -57,7 +57,8 @@ classdef F_figure
 		                    % but the Z axis becomes visible by manually rotating the
 							% axes in the MATLAB figure.
 		
-							
+		logx = 0;     % set to 1 to have a logarithmic x-axis
+        logy = 0;     % set to 1 to have a logarithmic x-axis
 							
 		% text
 		tit = '';
@@ -371,8 +372,20 @@ classdef F_figure
 			for kr=1:ncurves
 				assert(~isempty(F.styles{kr}));
 				switch(F.plot_type_2D)					
-					case 'plot'						
-						plot(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+					case 'plot'	
+                        if F.logx
+                            if F.logy
+                                loglog(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+                            else
+                                semilogx(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+                            end						
+                        else
+                            if F.logy
+                                semilogy(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+                            else
+                                plot(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+                            end
+                        end
 					case 'stem'
 						stem(F.X(kr,:),F.Y(kr,:),F.styles{kr});
 					case 'bar'

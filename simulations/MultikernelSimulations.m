@@ -115,14 +115,16 @@ classdef MultikernelSimulations < simFunctionSet
 			mse = Simulator.computeMse(res,Results('stat',graphFunction));
 			
 			% Representation			
-			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),'xlab',Parameter.getXLabel(generator,sampler,est));
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
+                'xlab',Parameter.getXLabel(generator,sampler,est));
 			
 		end
 		
 		
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		%%  simulations with MKL on synthetic data
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  simulations with MKL on synthetic data
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		% Simulation to test the regularization parameter
 		function F = compute_fig_3001(obj,niter)
@@ -130,11 +132,11 @@ classdef MultikernelSimulations < simFunctionSet
 			SNR = 20; % dB
 			N = 100;
 						
-			% generate graph
+			% 1. generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.3,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
 			
-			% generate Kernel matrix
+			% 2. generate Kernel matrix
 			sigmaArray = linspace(0.01, 1.5, 20);
 			nSigma = length(sigmaArray);
 			m_kernel = zeros(N,N,nSigma);
@@ -149,10 +151,10 @@ classdef MultikernelSimulations < simFunctionSet
 			NMSE = nan(length(uArray));
 			S = 50;
 			
-			% define graph function sampler
+			% 3. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_numberOfSamples',S,'s_SNR',SNR);
 			
-			% geneartor graph function
+			% 4. geneartor graph function
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
 			m_graphFunction = functionGenerator.realization();
 			
@@ -164,10 +166,10 @@ classdef MultikernelSimulations < simFunctionSet
 				
 				estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel, 's_mu', u);
 				m_graphFunctionEstimate = estimator.estimate(m_samples, m_positions);
-				NMSE(iU)  = norm(m_graphFunctionEstimate - m_graphFunction,'fro')^2/size(m_graphFunction,1);
+				NMSE(iU)  = norm(m_graphFunctionEstimate - ...
+                    m_graphFunction,'fro')^2/size(m_graphFunction,1);
 				
-				fprintf('Progress: %3.1f%%\n', ...
-					100*( iU ) / ...
+				fprintf('Progress: %3.1f%%\n', 100*( iU ) / ...
 					( length(uArray)) );
 			end
 			
@@ -176,7 +178,7 @@ classdef MultikernelSimulations < simFunctionSet
 			legend(sprintf('S = %d',S))
 			
 			
-			F = [];
+			F = F_figure('X',uArray,'Y',NMSE','logx',1);
 			
 		end	
 		
