@@ -157,7 +157,8 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
             % generate duplication matrix M such that
             % M * vech(L) = vec(L)
             N = s_laplacianSize;
-            M = zeros( N^2, N*(N+1)/2 );
+            %M = zeros( N^2, N*(N+1)/2 );
+            yIndex = NaN(N^2,1);    % use sparse matrix to speedup
             
             % convert index of vec(L) into matrix coordinates
             % then switch row and columns to ensure it's in lower triangle
@@ -168,8 +169,10 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
                 row = max(coord);
                 col = min(coord);
                 idxh = colIndex(col) + row - col + 1;
-                M(idx, idxh) = 1;
+                %M(idx, idxh) = 1;
+                yIndex(idx) = idxh;
             end
+            M = sparse( 1:N^2, yIndex, ones(N^2,1), N^2, N*(N+1)/2 );
         end
         
         function m_L = unvech(v_vechL)
