@@ -64,7 +64,7 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
             s_numberOfVertices = size(obj.m_kernels,1);
             s_numberOfRealizations = size(m_samples,2);
             %s_epsilon is used to invert a singular subBasis
-            s_epsilon=10^-10;
+            s_epsilon=0;
             m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
             for realizationCounter = 1:s_numberOfRealizations
                 %find appropriate subbasis
@@ -81,7 +81,7 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
 
                 m_P=m_SubBasisSamp*((m_SubBasisSamp'*m_SubBasisSamp+eye(size(m_SubBasisSamp,2))*s_epsilon)\(m_SubBasisSamp'));
                 m_H=(eye(size(m_P))-m_P)'*(eye(size(m_P))-m_P);
-                v_alphas=pinv(m_subK'*(m_H*m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK))))*(m_subK'*(m_H*m_samples(:,realizationCounter)));
+                v_alphas=(m_subK'*(m_H*m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK))))\(m_subK'*(m_H*m_samples(:,realizationCounter)));
                 v_betas=(m_SubBasisSamp'*m_SubBasisSamp)\(m_SubBasisSamp'*(m_samples(:,realizationCounter)-m_subK*v_alphas));
                 m_estimate(:,realizationCounter) = obj.m_kernels(:,m_positions(:,realizationCounter))*v_alphas+ m_SubBasis*v_betas;
             end
