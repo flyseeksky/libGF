@@ -93,7 +93,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
 						iter, history(iter) );
 				end
                 
-				if history(iter) < 1e-4
+				if history(iter) < 1e-6
 					break;
                 end
 			end

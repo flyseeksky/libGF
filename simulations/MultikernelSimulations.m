@@ -138,17 +138,12 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			% 2. generate Kernel matrix
 			sigmaArray = linspace(0.01, 1.5, 20);
-			nSigma = length(sigmaArray);
-			m_kernel = zeros(N,N,nSigma);
 			L = graph.getLaplacian();
-			[V,D] = eig(L);
-			d = diag(D);
-			for iSigma = 1 : nSigma
-				sigma = sigmaArray( iSigma );
-				m_kernel(:,:,iSigma) = V * diag( exp( - sigma^2/2 * d ) ) * V';
-			end
-			uArray = logspace(-10, 0, 20);
-			NMSE = nan(length(uArray));
+            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
+			m_kernel = kG.getDiffusionKernel(sigmaArray);
+            
+			uArray = logspace(-20, 0, 50);
+			NMSE = NaN(length(uArray),1);
 			S = 50;
 			
 			% 3. define graph function sampler
@@ -172,14 +167,9 @@ classdef MultikernelSimulations < simFunctionSet
 				fprintf('Progress: %3.1f%%\n', 100*( iU ) / ...
 					( length(uArray)) );
 			end
-			
-			% save NMSE.mat NMSE
-			semilogx(uArray, NMSE)
-			legend(sprintf('S = %d',S))
-			
-			
+	
 			F = F_figure('X',uArray,'Y',NMSE','logx',1);
-			
+			  
 		end	
 		
 	end
