@@ -253,8 +253,8 @@ classdef Simulator
 				inargs{mn} = Simulator.mat_cell_element(inargs_vecs,mn,1);
 			end
 			
-			for mn = 1:N*M			
-%			parfor mn = 1:N*M
+			%for mn = 1:N*M			
+			parfor mn = 1:N*M
 				    pftic = tic;
 					inargs_now = inargs{mn};
 					

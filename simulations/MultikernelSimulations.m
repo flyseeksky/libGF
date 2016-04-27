@@ -131,53 +131,46 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			SNR = 20; % dB
 			N = 100;
+            S_Vec = 10:20:80;
+            uArray = logspace(-10, 0, 10);
 						
 			% 1. generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.3,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
+            % 2. generate graph function
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
+			m_graphFunction = functionGenerator.realization();
+            generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 			
-			% 2. generate Kernel matrix
+			% 3. generate Kernel matrix
 			sigmaArray = linspace(0.01, 1.5, 20);
 			L = graph.getLaplacian();
             kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
 			m_kernel = kG.getDiffusionKernel(sigmaArray);
+			
+			% 4. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
+            sampler = sampler.replicate('s_numberOfSamples', num2cell(S_Vec),[],{}); 
+			
+			% 5. define function estimator
+            estimator = MkrGraphFunctionEstimator('s_mu',1e-3);
+            estimator = estimator.replicate([],{}, ...
+                'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
+            %estimator = estimator.replicate([], {}, 's_mu', num2cell(uArray) );
+			
+			% Simulation
+			res = Simulator.simStatistic(niter,generator,sampler,estimator);
+			mse = Simulator.computeMse(res,Results('stat',m_graphFunction));
             
-			uArray = logspace(-20, 0, 50);
-			NMSE = NaN(length(uArray),1);
-			S = 50;
-			
-			% 3. define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_numberOfSamples',S,'s_SNR',SNR);
-			
-			% 4. geneartor graph function
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
-			m_graphFunction = functionGenerator.realization();
-			
-			[m_samples, m_positions] = sampler.sample(m_graphFunction);
-			
-			
-			for iU = 1 : length(uArray)
-				u = uArray(iU);
-				
-				estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel, 's_mu', u);
-				m_graphFunctionEstimate = estimator.estimate(m_samples, m_positions);
-				NMSE(iU)  = norm(m_graphFunctionEstimate - ...
-                    m_graphFunction,'fro')^2/size(m_graphFunction,1);
-				
-				fprintf('Progress: %3.1f%%\n', 100*( iU ) / ...
-					( length(uArray)) );
-			end
-	
-			F = F_figure('X',uArray,'Y',NMSE','logx',1);
-			  
+            % Representation			
+% 			F = F_figure('X',S_Vec,...
+%                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,estimator),...
+%                 'xlab',Parameter.getXLabel(generator,sampler,estimator));
+            F = F_figure('X',sigmaArray,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler, estimator));		  
 		end	
 		
 	end
 	
 	
 end
-
-
-
-
-

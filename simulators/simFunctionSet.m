@@ -108,7 +108,6 @@ classdef simFunctionSet
 			ff = figure(fig+indx -1);
 			load(matfile)
 			
-			%%
 			
 			% legend
 % 			if 0

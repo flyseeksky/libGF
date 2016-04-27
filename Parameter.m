@@ -334,7 +334,8 @@ classdef Parameter < matlab.mixin.Heterogeneous
 			for k = 1:length(varargin)
 				obj_array_now = varargin{k};				
 				obj1=obj_array_now(1,1);
-				if isempty(obj1.c_replicatedHorizontallyAlong)
+				if isempty(obj1.c_replicatedHorizontallyAlong) || ...
+                        isempty(obj1.c_replicatedHorizontallyAlong{1})
 					continue;					
 				end
 				ind = obj1.parameterIndex(obj1.c_replicatedHorizontallyAlong{1});
@@ -352,7 +353,8 @@ classdef Parameter < matlab.mixin.Heterogeneous
 			for k = 1:length(varargin)
 				obj_array_now = varargin{k};				
 				obj1=obj_array_now(1,1);
-				if isempty(obj1.c_replicatedHorizontallyAlong)
+				if isempty(obj1.c_replicatedHorizontallyAlong) || ...
+                        isempty(obj1.c_replicatedHorizontallyAlong{1})
 					continue;					
 				end
 				ind = obj1.parameterIndex(obj1.c_replicatedHorizontallyAlong{1});

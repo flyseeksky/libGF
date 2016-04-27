@@ -2,9 +2,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name'};
-		c_stringToPrint  = {''};
-		c_patternToPrint = {'%s%s'};
+        c_parsToPrint  = {'ch_name', 's_mu',};
+		c_stringToPrint  = {'', 'mu'};
+		c_patternToPrint = {'%s%s', '%s = %f'};
     end
     
     properties
@@ -86,44 +86,5 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             end
         end
         
-    end
-    
-    methods(Static)
-        
-        function m_kernel = getKernelFromFunction(m_laplacian,c_functions)
-           % 
-           % m_kernel       N x N x P tensor where m_kernel(:,:,p) is the
-           %                kernel matrix for the graph laplacian kernel
-           %                corresponding to the function of eigenvalues
-           %                c_functions(p).
-           %                N = size(m_laplacian，1）
-           %                P = length(c_functions)
-           %
-                                
-            
-        end
-        
-        function m_kernel = getDiffusionKernel(m_laplacian,v_sigma2)
-           % 
-           % m_kernel       N x N x P tensor where m_kernel(:,:,p) is the
-           %                kernel matrix for the graph diffusion kernel
-           %                with parameter v_sigma2(p).
-           %                N = size(m_laplacian，1）
-           %                P = length(v_sigma2)
-           %
-           
-           for k=length(v_sigma2):-1:1
-               c_functions(k) = @(lambda) exp(v_sigma2(k)/(2*lambda));
-           end
-           
-           m_kernel =  MkrGraphFunctionEstimator.getKernelFromFuncion(m_laplacian,c_functions);
-           
-        end
-        
-        
-        
-        
-        
-    end
-    
+	end
 end

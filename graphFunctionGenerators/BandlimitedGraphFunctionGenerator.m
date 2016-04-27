@@ -37,7 +37,8 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 			
 			
 			m_B = obj.basis;
-			M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth)*m_B*randn(obj.s_bandwidth,s_numberOfRealizations);
+			M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+                m_B*sort(rand(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
 			
 			
 		end
