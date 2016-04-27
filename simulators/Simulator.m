@@ -253,8 +253,8 @@ classdef Simulator
 				inargs{mn} = Simulator.mat_cell_element(inargs_vecs,mn,1);
 			end
 			
-			%for mn = 1:N*M			
-			parfor mn = 1:N*M
+			for mn = 1:N*M			
+			%parfor mn = 1:N*M
 				    pftic = tic;
 					inargs_now = inargs{mn};
 					
@@ -264,8 +264,8 @@ classdef Simulator
 				
 					output_time_parfor_iteration(mn) = toc(pftic);
 				fprintf('parfor iter %d finished in %s\n',mn,print_time(output_time_parfor_iteration(mn)));
-			end
-	output_time_parfor_iteration = reshape( output_time_parfor_iteration , M , N )
+            end
+            output_time_parfor_iteration = reshape( output_time_parfor_iteration , M , N )
 	
 			%fprintf('out of parfor\n');
 			rsargout = reshape(argout,M,N);

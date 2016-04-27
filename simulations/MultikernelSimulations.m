@@ -132,10 +132,9 @@ classdef MultikernelSimulations < simFunctionSet
 			SNR = 20; % dB
 			N = 100;
             S_Vec = 10:20:80;
-            uArray = logspace(-10, 0, 10);
 						
 			% 1. generate graph
-			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.3,'s_numberOfVertices',N);
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.2,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
             % 2. generate graph function
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
@@ -156,18 +155,16 @@ classdef MultikernelSimulations < simFunctionSet
             estimator = MkrGraphFunctionEstimator('s_mu',1e-3);
             estimator = estimator.replicate([],{}, ...
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
-            %estimator = estimator.replicate([], {}, 's_mu', num2cell(uArray) );
 			
 			% Simulation
-			res = Simulator.simStatistic(niter,generator,sampler,estimator);
-			mse = Simulator.computeMse(res,Results('stat',m_graphFunction));
+% 			res = Simulator.simStatistic(niter,generator,sampler,estimator);
+% 			mse = Simulator.computeMse(res,Results('stat',m_graphFunction));
+            mse = Simulate(generator, sampler, estimator, niter, m_graphFunction);
             
-            % Representation			
-% 			F = F_figure('X',S_Vec,...
-%                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,estimator),...
-%                 'xlab',Parameter.getXLabel(generator,sampler,estimator));
+            % Representation
             F = F_figure('X',sigmaArray,'Y',mse, ...
-                'leg',Parameter.getLegend(generator,sampler, estimator));		  
+                'leg',Parameter.getLegend(generator,sampler, estimator),...
+                'xlab','\sigma^2','ylab','Normalized MSE');		  
 		end	
 		
 	end

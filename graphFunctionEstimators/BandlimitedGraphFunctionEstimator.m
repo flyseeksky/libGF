@@ -54,10 +54,10 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			s_numberOfRealizations = size(m_samples,2);
 						
 			m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
-			for realizationCounter = 1:s_numberOfRealizations
-				m_PhiB = obj.m_laplacianEigenvectors( m_positions(:,realizationCounter) , : );
-				v_alphas = m_PhiB\m_samples(:,realizationCounter);
-				m_estimate(:,realizationCounter) = obj.m_laplacianEigenvectors*v_alphas;
+			for iRealization = 1:s_numberOfRealizations
+				m_PhiB = obj.m_laplacianEigenvectors( m_positions(:,iRealization) , : );
+				v_alphas = m_PhiB\m_samples(:,iRealization);
+				m_estimate(:,iRealization) = obj.m_laplacianEigenvectors*v_alphas;
 			end
 			
 			

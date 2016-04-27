@@ -31,12 +31,15 @@ classdef KernelGenerator < Parameter
             end
             
             [V,D] = eig(obj.m_laplacian);
+            D(1,1) = 0;                     % fix a bug since the first
+                                            % eigenvalue of L is always 0
             N = size(obj.m_laplacian,1);
             P = length(obj.h_r);
             t_kernelMatrix = NaN(N,N,P);
             for p = 1 : P
                 r = obj.h_r{p};
-                t_kernelMatrix(:,:,p) = V * r(D) * V';
+                Kp = V * diag(r(diag(D))) * V';
+                t_kernelMatrix(:,:,p) = ( Kp + Kp' )/2;
             end
         end
     end
@@ -52,8 +55,8 @@ classdef KernelGenerator < Parameter
             for iSigma = 1 : length(sigmaArray)
                 sigma = sigmaArray(iSigma);
                 obj.h_r{iSigma} = @(lambda) exp( - sigma^2 * lambda / 2 );
-                t_kernelMatrix = obj.getKernelMatrix();
             end
+            t_kernelMatrix = obj.getKernelMatrix();
         end
         
         % regularized kernel: r(lambda) = 1 + sigma^2*lambda
@@ -66,8 +69,8 @@ classdef KernelGenerator < Parameter
             for iSigma = 1 : length(sigmaArray)
                 sigma = sigmaArray(iSigma);
                 obj.h_r{iSigma} = @(lambda) 1./(1 + sigma^2 * lambda);
-                t_kernelMatrix = obj.getKernelMatrix();
             end
+            t_kernelMatrix = obj.getKernelMatrix();
         end
     end
     

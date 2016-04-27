@@ -38,7 +38,12 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 			
 			m_B = obj.basis;
 			M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
-                m_B*sort(rand(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
+              m_B*sort(rand(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
+%             N = obj.graph.getNumberOfVertices();
+%             atilde = (1:N)';
+%             alpha = exp( - atilde / 50 );
+%             V = obj.graph.getLaplacianEigenvectors();
+%             M_graphFunction = 10*V*alpha * ones(s_numberOfRealizations,1);
 			
 			
 		end
