@@ -49,7 +49,7 @@ classdef Parameter < matlab.mixin.Heterogeneous
 	
 	properties(Constant)
 		def_chars_per_line = 200;
-	end
+    end
 	
 	methods
 		

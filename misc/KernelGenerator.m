@@ -4,9 +4,9 @@ classdef KernelGenerator < Parameter
     %   
     
     properties
-        c_parsToPrint = {'ch_type'};
-		c_stringToPrint = {''};
-		c_patternToPrint = {'%s kernel'};
+        c_parsToPrint = {'ch_type','s_sigma'};
+		c_stringToPrint = {'','\sigma'};
+		c_patternToPrint = {'%s kernel','%s = %f'};
     end
     
     properties

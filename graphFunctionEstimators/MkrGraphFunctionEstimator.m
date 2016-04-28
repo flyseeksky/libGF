@@ -13,6 +13,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 		           %       N: number of vertices
 				   %       P: number of kernels
         s_mu
+        s_sigma    % only valid for single kernel
     end
     
     methods
