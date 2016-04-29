@@ -2,9 +2,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 's_mu',};
-		c_stringToPrint  = {'', 'mu'};
-		c_patternToPrint = {'%s%s', '%s = %f'};
+        c_parsToPrint  = {'ch_name', 'legendString',};
+		c_stringToPrint  = {'', ''};
+		c_patternToPrint = {'%s%s', '%s%s'};
     end
     
     properties
@@ -16,12 +16,28 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         s_sigma    % only valid for single kernel
     end
     
+    properties (Dependent)
+        legendString
+    end
+    
+    methods
+        function str = get.legendString(obj)
+            % return string that can be used for legend generating
+            nKernels = size(obj.m_kernel,3);
+            if nKernels == 1
+                str = sprintf('1 kernel, \\sigma = %3.2f', obj.s_sigma);
+            else
+                str = sprintf('%d kernels', nKernels);
+            end
+        end
+    end
+    
     methods
         function obj = MkrGraphFunctionEstimator(varargin)  % constructor
             obj@GraphFunctionEstimator(varargin{:});
         end
         
-        function m_estimate = estimate(obj, m_samples, m_positions)
+        function [m_estimate, m_alpha] = estimate(obj, m_samples, m_positions)
             if isempty(obj.m_kernel) || isempty(obj.s_mu)
                 error('MkrGraphFunctionEstimator:notEnoughInfo',...
                     'Kernel and mu not set');
@@ -32,10 +48,10 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
                 error('MkrGraphFunctionEstimator:outOfBound', ...
                     'position out of bound');
             end
-            m_estimate = obj.estimateSignal(m_samples, m_positions);
+            [m_estimate, m_alpha] = obj.estimateSignal(m_samples, m_positions);
         end
         
-        function m_estimate = estimateSignal(obj,m_samples,m_positions)
+        function [m_estimate, m_alpha] = estimateSignal(obj,m_samples,m_positions)
             [N,~,nKernel] = size(obj.m_kernel);
             K_observed = obj.m_kernel(m_positions, m_positions, :);
             K = obj.m_kernel;
@@ -46,6 +62,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             %alpha_mat = reshape(a,S,nKernel);
             % get the estimated signal on the whole graph
             m_estimate = zeros(N,1);
+			m_alpha = zeros(N, nKernel);
             for iKernel = 1 : nKernel
                 % extend ai from size S to size N
                 alpha = zeros(N,1);
@@ -55,6 +72,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
                 % get estimated signal
                 Ki = K(:,:,iKernel);
                 m_estimate = m_estimate + Ki*alpha;
+				m_alpha(:,iKernel) = alpha;
             end
         end
         

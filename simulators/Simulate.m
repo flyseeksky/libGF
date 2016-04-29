@@ -63,8 +63,8 @@ end
 
 function m_estimate = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
 
+graphFunction = generator.realization();
 parfor iMonte = 1 : MONTE_CARLO
-    graphFunction = generator.realization();
     [m_samples, m_positions] = sampler.sample(graphFunction);
     estimate(:, iMonte) = estimator.estimate(m_samples, m_positions);
 end
