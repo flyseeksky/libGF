@@ -23,6 +23,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     methods
         function str = get.legendString(obj)
             % return string that can be used for legend generating
+            % because when replicate along m_kernel, this property cannot 
+            % be printed, thus define this dependent property to accomplish
+            % this task
             nKernels = size(obj.m_kernel,3);
             if nKernels == 1
                 str = sprintf('1 kernel, \\sigma = %3.2f', obj.s_sigma);
@@ -52,34 +55,45 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         end
         
         function [m_estimate, m_alpha] = estimateSignal(obj,m_samples,m_positions)
-            [N,~,nKernel] = size(obj.m_kernel);
+            % This is the function that does the real job
+            [N,M,nKernel] = size(obj.m_kernel);  % N is # of vertices
+            assert(N==M, 'Kernel matrix should be square');
+            
             K_observed = obj.m_kernel(m_positions, m_positions, :);
             K = obj.m_kernel;
             S = size(m_positions, 1);
             % estimate a
             y = m_samples;
-            a = real( obj.estimateAlpha( y, K_observed ) );
+            alpha = real( obj.estimateAlpha( y, K_observed ) );
             %alpha_mat = reshape(a,S,nKernel);
             % get the estimated signal on the whole graph
-            m_estimate = zeros(N,1);
+            m_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
 			m_alpha = zeros(N, nKernel);
             for iKernel = 1 : nKernel
-                % extend ai from size S to size N
-                alpha = zeros(N,1);
-                ai = a( (iKernel - 1)*S + 1 : iKernel*S );
-                alpha(m_positions) = ai;
+                % extract ai
+                alpha_i = zeros(N,1);
+                alpha_i(m_positions) = alpha( ((iKernel-1)*S + 1) : iKernel*S );
 
                 % get estimated signal
-                Ki = K(:,:,iKernel);
-                m_estimate = m_estimate + Ki*alpha;
-				m_alpha(:,iKernel) = alpha;
+                Ki = K(:,:,iKernel); % kernel of the whole graph
+                m_estimate = m_estimate + Ki*alpha_i;
+                
+				m_alpha(:,iKernel) = alpha_i;  % record alpha_i
             end
         end
         
-        function a = estimateAlpha(obj, m_samples, K)   % estimate alpha
+        function a = estimateAlpha(obj, m_samples, K)
+            % use group lasso to solve alpha
+            % Input:
+            %       m_samples       observed signal
+            %       K               kernel matrix for observed part
+            % Output:
+            %       alpha           alpha in group lasso format
+            %
+            
             S = length(m_samples);
-            u = obj.s_mu;
-            y = m_samples;
+            u = obj.s_mu;             % regularization parameter
+            y = m_samples;            % observed signal
             nKernel = size(K,3);      % # of kernels
 
             % change variable to group lasso format

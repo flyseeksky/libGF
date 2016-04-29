@@ -180,7 +180,7 @@ classdef MultikernelSimulations < simFunctionSet
             generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 			
 			% 3. generate Kernel matrix
-			sigmaArray = linspace(0.01, 1.5, 20);
+			sigmaArray = linspace(0.01, 1.5, 10);
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
             kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
@@ -204,9 +204,13 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			anorm = sum( m_alpha.^2, 1 );
 			anorm = permute(anorm, [3 2 1]);
+            
+            for i = 1:length(sigmaArray)
+                legendStr{i} = sprintf('\\sigma=%2.2f',sigmaArray(i));
+            end
 			
 			F = F_figure('X', u_Vec, 'Y', anorm', 'logx', true, ...
-				'xlab', '\mu', 'ylab', '||\alpha_i||^2');
+				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr);
 			
             % Simulation
 %             mse = Simulate(generator, sampler, estimator, niter, m_graphFunction);
@@ -225,7 +229,7 @@ classdef MultikernelSimulations < simFunctionSet
 			N = 100;
             S_Vec = 10:10:80;
             v_bandwidth = [2 5 10 20 40];
-            mu = 5e-3;
+            mu = 5e-6;
             
 						
 			% 1. generate graph
