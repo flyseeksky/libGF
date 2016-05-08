@@ -18,7 +18,7 @@ classdef F_figure
 	end
 	
 	
-	properties 
+	properties
 		fignum = 1; % number of the first figure		
 
 		% Multiplot fields
@@ -112,7 +112,7 @@ classdef F_figure
 								 %
 								 % The table used is the one corresponding to F(1)
 		inhibit_pause = 0;       % if one, no pause commands are issued when displaying sequences (see above)
-		
+		figure;% figure object if not null then plot it
 	end
 	
 	
@@ -175,6 +175,7 @@ classdef F_figure
 			% fgnum : number of the first figure
 
 			% number
+			
 			if nargin>1
 				function_number = fgnum;
 			else
@@ -200,9 +201,14 @@ classdef F_figure
 				
 				check_parameters(F_now(1,1,1));
 				figure(function_number+k-1)
-								
+				if ~isempty(F_now.figure)
+				plot(F_now.figure)
+				else
 				plot_scalar_F(F_now,function_number,k); % it may have a third dimension
+	
+				end
 								
+												
 			end
 			
 			

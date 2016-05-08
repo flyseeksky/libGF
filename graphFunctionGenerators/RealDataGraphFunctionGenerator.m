@@ -32,7 +32,8 @@ classdef RealDataGraphFunctionGenerator  < GraphFunctionGenerator
 			end
 			
             M_graphFunction=repmat(obj.v_realSignal,[1,s_numberOfRealizations]);
-			
+			v_powerVect=sqrt(sum(M_graphFunction.^2,1));
+			M_graphFunction=M_graphFunction./repmat(v_powerVect,size(M_graphFunction,1),1);
 			
         end
 		

@@ -60,7 +60,7 @@ classdef UniformGraphFunctionSampler < GraphFunctionSampler
 			
 			if obj.s_SNR < Inf
 				snr = 10^(obj.s_SNR/10);  % natural units
-				noisePower = 1/snr;
+				noisePower = 1/(s_numberOfVertices*snr);
 				m_samples = m_samples + sqrt(noisePower)*randn(obj.s_numberOfSamples,s_numberOfRealizations);
 				
 			end
