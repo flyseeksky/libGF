@@ -31,14 +31,14 @@ classdef KernelGenerator < Parameter
             end
             
             [V,D] = eig(obj.m_laplacian);
-            D(1,1) = 0;                     % fix a bug since the first
+            d = diag(D);  d(1) = 0;                  % fix a bug since the first
                                             % eigenvalue of L is always 0
             N = size(obj.m_laplacian,1);
             P = length(obj.h_r);
             t_kernelMatrix = NaN(N,N,P);
             for p = 1 : P
                 r = obj.h_r{p};
-                Kp = V * diag(r(diag(D))) * V';
+                Kp = V * diag(r(d)) * V.';
                 t_kernelMatrix(:,:,p) = ( Kp + Kp' )/2;
             end
         end

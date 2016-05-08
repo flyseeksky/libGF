@@ -19,7 +19,7 @@ COL = max( [size(generator,2), size(sampler,2), size(estimator,2)] );
 
 % simulation
 NMSE = NaN(ROW,COL);
-normRef = norm(refSignal);
+normRef2 = norm(refSignal)^2;
 for iRow = 1 : ROW
     for iCol = 1 : COL
         m_estimate = MonteCarloSimulation( ...
@@ -27,7 +27,7 @@ for iRow = 1 : ROW
             getObjectFromMat(sampler,iRow,iCol), ...
             getObjectFromMat(estimator, iRow, iCol), ...
             MONTE_CARLO);
-        NMSE(iRow, iCol) = norm(m_estimate - refSignal) / normRef;
+        NMSE(iRow, iCol) = norm(m_estimate - refSignal)^2 / normRef2;
         
         if DEBUG
             fprintf('Simulation progress\t%3.1f%%\n', ...
@@ -35,6 +35,18 @@ for iRow = 1 : ROW
         end
     end
 end
+
+end
+
+function m_estimate = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
+
+graphFunction = generator.realization();
+parfor iMonte = 1 : MONTE_CARLO
+    [m_samples, m_positions] = sampler.sample(graphFunction);
+    estimate(:, iMonte) = estimator.estimate(m_samples, m_positions);
+end
+
+m_estimate = mean(estimate,2);
 
 end
 
@@ -61,14 +73,3 @@ end
 
 end
 
-function m_estimate = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
-
-graphFunction = generator.realization();
-parfor iMonte = 1 : MONTE_CARLO
-    [m_samples, m_positions] = sampler.sample(graphFunction);
-    estimate(:, iMonte) = estimator.estimate(m_samples, m_positions);
-end
-
-m_estimate = mean(estimate,2);
-
-end

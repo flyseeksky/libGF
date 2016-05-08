@@ -58,24 +58,27 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             % This is the function that does the real job
             [N,M,nKernel] = size(obj.m_kernel);  % N is # of vertices
             assert(N==M, 'Kernel matrix should be square');
-            
-            K_observed = obj.m_kernel(m_positions, m_positions, :);
+			
             K = obj.m_kernel;
-            S = size(m_positions, 1);
-            % estimate a
-            y = m_samples;
-            alpha = real( obj.estimateAlpha( y, K_observed ) );
-            %alpha_mat = reshape(a,S,nKernel);
-            % get the estimated signal on the whole graph
+            K_observed = obj.m_kernel(m_positions, m_positions, :);
+			S = size(m_positions, 1);
+			
+			kernelScale = NaN(nKernel,1);     % normalize kernel matrix
+			for iKernel = 1 : size(K_observed,3)
+				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
+				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
+				K(:,:,iKernel) = K(:,:,iKernel) / kernelScale(iKernel);
+			end
+            
+            % estimate alpha
+            alpha = real( obj.estimateAlpha( m_samples, K_observed ) );
+			
+			% recover signal on whole graph
             m_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
-			m_alpha = zeros(N, nKernel);
+			m_alpha = zeros(length(m_positions), nKernel);
             for iKernel = 1 : nKernel
-                % extract ai
-                alpha_i = zeros(N,1);
-                alpha_i(m_positions) = alpha( ((iKernel-1)*S + 1) : iKernel*S );
-
-                % get estimated signal
-                Ki = K(:,:,iKernel); % kernel of the whole graph
+                alpha_i = alpha( ((iKernel-1)*S + 1) : iKernel*S ); % extract ai
+                Ki = K(:,m_positions,iKernel); % kernel of the whole graph
                 m_estimate = m_estimate + Ki*alpha_i;
                 
 				m_alpha(:,iKernel) = alpha_i;  % record alpha_i
@@ -102,6 +105,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
                 Ki = K(:,:,iKernel);
                 A(:, ((iKernel-1)*S + 1) : iKernel*S ) = mpower(Ki,1/2);
             end
+% 			A = reshape(K, [size(K,1) size(K,2)*size(K,3)]);
             
             % set the parameter for group lasso solver
             lambda = S/2 * u;
