@@ -40,7 +40,6 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		
 		% This is a simple simulation to construct a Monte Carlo figure
 		function F = compute_fig_2001(obj,niter)
 			
@@ -72,8 +71,6 @@ classdef MultikernelSimulations < simFunctionSet
 			F = F_figure('X',Parameter.getXAxis(generator,sampler,estimator),'Y',mse,'leg',Parameter.getLegend(generator,sampler,estimator),'xlab',Parameter.getXLabel(generator,sampler,estimator),'ylab','MSE');
 			
 		end
-		
-		
 		
 		% This is a simple simulation to construct a Monte Carlo figure
 		% Different from 2001, objets of different classes are concatenated
@@ -120,6 +117,9 @@ classdef MultikernelSimulations < simFunctionSet
                 'xlab',Parameter.getXLabel(generator,sampler,est));
 			
 		end
+		
+		%
+		
 		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
