@@ -118,7 +118,23 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		%
+		% 
+		function F = compute_fig_2003(obj,niter)
+			
+			vertexNum = 100;
+			columnInd = 50;
+			
+			sigma2 = .1;
+			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
+			KcolDiffusionKernel = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2) , columnInd);
+			
+			epsilon = 1e-6;
+			rLaplacianReg = @(lambda,epsilon) lambda + epsilon;
+			KcolLaplacianReg = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,epsilon) , columnInd);
+						
+			%F = F_figure('X',1:vertexNum,'Y',KcolDiffusionKernel');
+			F = F_figure('X',1:vertexNum,'Y',KcolLaplacianReg');
+		end
 		
 		
 		
@@ -521,6 +537,21 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			NMSE = median(N_SE);
 			
+		end
+		
+		function Kcol = columnLaplacianKernelCircularGraph(vertexNum,rFun,columnInd)
+			% Kcol is a vertexNum x 1 vector that corresponds to the
+			% columnInd-th column of the Laplacian kernel matrix of a
+			% circular graph when the r function is rFun. 
+			%
+			% rFun must accept vector-valued inputs.
+			
+			Dinds = (1:vertexNum)-columnInd;
+			
+			for rowInd = 1:vertexNum				
+				Kcol(rowInd,1) = (1/vertexNum)*sum( exp(1j*2*pi/vertexNum*(0:vertexNum-1)*Dinds(rowInd))./rFun(2*(1-cos(2*pi/vertexNum*(0:vertexNum-1)))));
+			end
+			Kcol = real(Kcol);
 		end
 		
 	end
