@@ -178,9 +178,10 @@ classdef MultikernelSimulations < simFunctionSet
 			% 3. generate Kernel matrix
 			sigmaArray = linspace(0.01, 1.5, 30);
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
-			
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+            
 			% 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
             sampler = sampler.replicate('s_numberOfSamples', num2cell(S_Vec),[],{}); 
@@ -222,8 +223,8 @@ classdef MultikernelSimulations < simFunctionSet
 			sigmaArray = linspace(0.01, 1.5, 20);
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
             
             % 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',50);
@@ -276,8 +277,8 @@ classdef MultikernelSimulations < simFunctionSet
 			sigmaArray = linspace(0.1, 1.5, 20);
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
             
             % 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',40);
@@ -325,15 +326,26 @@ classdef MultikernelSimulations < simFunctionSet
                 num2cell(v_bandwidth), [], {});
             
             % 3. generate Kernel matrix
-			
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
+            
+			%kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
+			%m_kernel = kG.getDiffusionKernel(sigmaArray);
+            
+            %kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
             sigmaArray = [0.86 0.80 0 0];
-            c_kernel{1} = kG.getDiffusionKernel(sigmaArray(1));
-            c_kernel{2} = kG.getDiffusionKernel(sigmaArray(2));
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(1)));			
+            c_kernel{1} = kG.getKernelMatrix();
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(2)));			
+            c_kernel{2} = kG.getKernelMatrix();                    
+            
             sigmaArray2 = [3 0.8];
-            c_kernel{3} = kG.getDiffusionKernel(sigmaArray2);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray2));			
+            c_kernel{3} = kG.getKernelMatrix();
+            
             sigmaArray20 = linspace(0.1,1.5,20); %[0.1 0.3 0.5 0.8 0.95 1.1 1.3 1.5];
-			c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
+			kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray20));			
+            c_kernel{4} = kG.getKernelMatrix();
+            
+            %c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
             
             for i = 1 : length(sigmaArray)
                 mk_estimator(i) = MkrGraphFunctionEstimator('s_mu',mu_Vec(i),...
@@ -352,12 +364,6 @@ classdef MultikernelSimulations < simFunctionSet
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','sample size','ylab','Normalized MSE');	  
         end
-		
-		
-		
-		
-		
-		
 	end
 	
 	
