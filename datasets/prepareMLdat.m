@@ -1,3 +1,10 @@
+%m_clustUserInfoAge,m_clustUserInfoSex,m_clustUserInfoOccup are cluster
+%indicator matrices containing the clustering of users with respect to
+%their age group, sex and occupation.
+%m_clustUser just combines these clusters
+%m_train,m_test contain only the users that in the test set have rated more
+%than 20 movies.
+
 function [m_clustUser,m_clustUserInfoAge,m_clustUserInfoSex,m_clustUserInfoOccup,m_train,m_test,c_userInfo,c_movieInfo]=prepareMLdat
 %% prepare the user info matrix
 [m_train,m_test,c_userInfo,c_movieInfo] = readMLdat;
