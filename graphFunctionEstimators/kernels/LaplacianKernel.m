@@ -16,7 +16,7 @@ classdef LaplacianKernel < Parameter
     end
     
     methods
-        function obj = KernelGenerator(varargin)
+        function obj = LaplacianKernel(varargin)
             obj@Parameter(varargin{:});
         end
         

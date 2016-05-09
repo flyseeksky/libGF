@@ -137,9 +137,9 @@ classdef MultikernelSimulations < simFunctionSet
 			% direct computation
 			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
 			L = diag(sum(A,2))-A;
-			h_rFun = @(lambda) rLaplacianReg(lambda,epsilon);
-			kG = KernelGenerator('m_laplacian',L,'h_r',{h_rFun});
-			m_KernelMatrix = inv(kG.getKernelMatrix);
+			h_rFun_inv = @(lambda) 1./rLaplacianReg(lambda,epsilon);
+			kG = LaplacianKernel('m_laplacian',L,'h_r_inv',{h_rFun_inv});
+			m_KernelMatrix = kG.getKernelMatrix;
 			KcolLaplacianReg_direct = m_KernelMatrix(:,columnInd);
 			
 						
