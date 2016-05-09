@@ -296,6 +296,7 @@ classdef MultikernelSimulations < simFunctionSet
 				'xlab', '\mu', 'ylab', 'MSE');
         end
         
+        % This is a simulation that compares NMSE of bandlimted and MKL method
         function F = compute_fig_4001(obj,niter)
             
 			
