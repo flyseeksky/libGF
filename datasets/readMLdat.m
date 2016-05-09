@@ -1,4 +1,23 @@
 %for more information go to the readme file in the MovieLens folder
+%m_train,m_test are 943X1682 matrices contain as training and test data 
+%user ratings 
+%c_userInfo cell array containing 
+%  -- Demographic information about the users; this is a tab
+%               separated list of
+%               user id | age | gender | occupation | zip code
+%  
+%c_movieInfo cell array containing
+% -- Information about the items (movies); this is a tab separated
+%               list of
+%               movie id | movie title | release date | video release date |
+%               IMDb URL | unknown | Action | Adventure | Animation |
+%               Children's | Comedy | Crime | Documentary | Drama | Fantasy |
+%               Film-Noir | Horror | Musical | Mystery | Romance | Sci-Fi |
+%               Thriller | War | Western |
+%               The last 19 fields are the genres, a 1 indicates the movie
+%               is of that genre, a 0 indicates it is not; movies can be in
+%               several genres at once.
+%               The movie ids are the ones used in the u.data data set.
 function [m_train,m_test,c_userInfo,c_movieInfo] = readMLdat
 pth=which('readMLdat');
 path_left=pth(1:end-(length('readMLdat')+2));
@@ -23,17 +42,7 @@ D = readtable(file,'Delimiter','|','ReadVariableNames',false);
 c_userInfo=table2cell(D);
 file=strcat(path_left,'MovieLens\ml-100k\u.item.txt');
 D = readtable(file,'Delimiter','|','ReadVariableNames',false);
-% -- Information about the items (movies); this is a tab separated
-%               list of
-%               movie id | movie title | release date | video release date |
-%               IMDb URL | unknown | Action | Adventure | Animation |
-%               Children's | Comedy | Crime | Documentary | Drama | Fantasy |
-%               Film-Noir | Horror | Musical | Mystery | Romance | Sci-Fi |
-%               Thriller | War | Western |
-%               The last 19 fields are the genres, a 1 indicates the movie
-%               is of that genre, a 0 indicates it is not; movies can be in
-%               several genres at once.
-%               The movie ids are the ones used in the u.data data set.
+
 c_movieInfo=table2cell(D);
 m_train=zeros(size(c_userInfo,1),size(c_movieInfo,1));
 %I rearrange the train dataset and the the test so that it is in a 
