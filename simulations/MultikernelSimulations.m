@@ -118,7 +118,8 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		% 
+		% Figure to illustrate the interpolating functions (columns of the
+		% kernel matrix)
 		function F = compute_fig_2003(obj,niter)
 			
 			vertexNum = 100;
@@ -128,12 +129,24 @@ classdef MultikernelSimulations < simFunctionSet
 			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
 			KcolDiffusionKernel = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2) , columnInd);
 			
+			% computation via analytic expression
 			epsilon = 1e-6;
 			rLaplacianReg = @(lambda,epsilon) lambda + epsilon;
-			KcolLaplacianReg = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,epsilon) , columnInd);
+			KcolLaplacianReg_analytic = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,epsilon) , columnInd);
+			
+			% direct computation
+			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
+			L = diag(sum(A,2))-A;
+			h_rFun = @(lambda) rLaplacianReg(lambda,epsilon);
+			kG = KernelGenerator('m_laplacian',L,'h_r',{h_rFun});
+			m_KernelMatrix = inv(kG.getKernelMatrix);
+			KcolLaplacianReg_direct = m_KernelMatrix(:,columnInd);
+			
 						
-			%F = F_figure('X',1:vertexNum,'Y',KcolDiffusionKernel');
-			F = F_figure('X',1:vertexNum,'Y',KcolLaplacianReg');
+			%F = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic';KcolLaplacianReg_direct']);			
+			multiplot_array(1) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_direct']);
+			multiplot_array(2) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic']);
+			F = F_figure('multiplot_array',multiplot_array);
 		end
 		
 		
