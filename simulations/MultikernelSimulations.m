@@ -40,7 +40,6 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		
 		% This is a simple simulation to construct a Monte Carlo figure
 		function F = compute_fig_2001(obj,niter)
 			
@@ -72,8 +71,6 @@ classdef MultikernelSimulations < simFunctionSet
 			F = F_figure('X',Parameter.getXAxis(generator,sampler,estimator),'Y',mse,'leg',Parameter.getLegend(generator,sampler,estimator),'xlab',Parameter.getXLabel(generator,sampler,estimator),'ylab','MSE');
 			
 		end
-		
-		
 		
 		% This is a simple simulation to construct a Monte Carlo figure
 		% Different from 2001, objets of different classes are concatenated
@@ -121,6 +118,38 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
+		% Figure to illustrate the interpolating functions (columns of the
+		% kernel matrix)
+		function F = compute_fig_2003(obj,niter)
+			
+			vertexNum = 100;
+			columnInd = 50;
+			
+			sigma2 = .1;
+			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
+			KcolDiffusionKernel = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2) , columnInd);
+			
+			% computation via analytic expression
+			epsilon = 1e-6;
+			rLaplacianReg = @(lambda,epsilon) lambda + epsilon;
+			KcolLaplacianReg_analytic = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,epsilon) , columnInd);
+			
+			% direct computation
+			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
+			L = diag(sum(A,2))-A;
+			h_rFun = @(lambda) rLaplacianReg(lambda,epsilon);
+			kG = KernelGenerator('m_laplacian',L,'h_r',{h_rFun});
+			m_KernelMatrix = inv(kG.getKernelMatrix);
+			KcolLaplacianReg_direct = m_KernelMatrix(:,columnInd);
+			
+						
+			%F = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic';KcolLaplacianReg_direct']);			
+			multiplot_array(1) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_direct']);
+			multiplot_array(2) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic']);
+			F = F_figure('multiplot_array',multiplot_array);
+		end
+		
+		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		% %%  simulations with MKL on synthetic data
@@ -149,9 +178,10 @@ classdef MultikernelSimulations < simFunctionSet
 			% 3. generate Kernel matrix
 			sigmaArray = linspace(0.01, 1.5, 30);
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
-			
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+            
 			% 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
             sampler = sampler.replicate('s_numberOfSamples', num2cell(S_Vec),[],{}); 
@@ -193,8 +223,8 @@ classdef MultikernelSimulations < simFunctionSet
 			sigmaArray = linspace(0.01, 1.5, 20);
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
             
             % 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',50);
@@ -247,8 +277,8 @@ classdef MultikernelSimulations < simFunctionSet
 			sigmaArray = linspace(0.1, 1.5, 20);
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
-			m_kernel = kG.getDiffusionKernel(sigmaArray);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
             
             % 4. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',40);
@@ -296,15 +326,26 @@ classdef MultikernelSimulations < simFunctionSet
                 num2cell(v_bandwidth), [], {});
             
             % 3. generate Kernel matrix
-			
-            kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
+            
+			%kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
+			%m_kernel = kG.getDiffusionKernel(sigmaArray);
+            
+            %kG = KernelGenerator('ch_type','diffusion','m_laplacian',L);
             sigmaArray = [0.86 0.80 0 0];
-            c_kernel{1} = kG.getDiffusionKernel(sigmaArray(1));
-            c_kernel{2} = kG.getDiffusionKernel(sigmaArray(2));
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(1)));			
+            c_kernel{1} = kG.getKernelMatrix();
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(2)));			
+            c_kernel{2} = kG.getKernelMatrix();                    
+            
             sigmaArray2 = [3 0.8];
-            c_kernel{3} = kG.getDiffusionKernel(sigmaArray2);
+            kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray2));			
+            c_kernel{3} = kG.getKernelMatrix();
+            
             sigmaArray20 = linspace(0.1,1.5,20); %[0.1 0.3 0.5 0.8 0.95 1.1 1.3 1.5];
-			c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
+			kG = KernelGenerator('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray20));			
+            c_kernel{4} = kG.getKernelMatrix();
+            
+            %c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
             
             for i = 1 : length(sigmaArray)
                 mk_estimator(i) = MkrGraphFunctionEstimator('s_mu',mu_Vec(i),...
@@ -323,12 +364,6 @@ classdef MultikernelSimulations < simFunctionSet
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','sample size','ylab','Normalized MSE');	  
         end
-		
-		
-		
-		
-		
-		
 	end
 	
 	
@@ -361,6 +396,21 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			NMSE = median(N_SE);
 			
+		end
+		
+		function Kcol = columnLaplacianKernelCircularGraph(vertexNum,rFun,columnInd)
+			% Kcol is a vertexNum x 1 vector that corresponds to the
+			% columnInd-th column of the Laplacian kernel matrix of a
+			% circular graph when the r function is rFun. 
+			%
+			% rFun must accept vector-valued inputs.
+			
+			Dinds = (1:vertexNum)-columnInd;
+			
+			for rowInd = 1:vertexNum				
+				Kcol(rowInd,1) = (1/vertexNum)*sum( exp(1j*2*pi/vertexNum*(0:vertexNum-1)*Dinds(rowInd))./rFun(2*(1-cos(2*pi/vertexNum*(0:vertexNum-1)))));
+			end
+			Kcol = real(Kcol);
 		end
 		
 	end

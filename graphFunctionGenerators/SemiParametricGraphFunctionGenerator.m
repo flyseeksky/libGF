@@ -33,7 +33,9 @@ classdef SemiParametricGraphFunctionGenerator  < GraphFunctionGenerator
             end			
 			m_B = obj.m_parametricBasis;
 			M_graphFunction =obj.graphFunctionGenerator.realization(s_numberOfRealizations) +m_B*randn(size(m_B,2),s_numberOfRealizations);
-			
+			v_powerVect=sqrt(sum(M_graphFunction.^2,1));
+			%a=repmat(v_powerVect,size(M_graphFunction,1),1);
+			M_graphFunction=M_graphFunction./repmat(v_powerVect,size(M_graphFunction,1),1);
 			
 		end
 	
