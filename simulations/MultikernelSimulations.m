@@ -201,6 +201,8 @@ classdef MultikernelSimulations < simFunctionSet
                 'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu));		  
         end	
         
+        % Simulation to show how sparsity of alpha changes with the increasing
+        % of regularization parameter
         function F = compute_fig_3002(obj, niter)
 			% Figure: ||alpha_i|| vs mu
 			% Check the sparsity pattern  of alpha
