@@ -343,6 +343,7 @@ classdef MultikernelSimulations < simFunctionSet
 				'xlab', '\mu', 'ylab', 'MSE');
 		end
         
+
 		% Simple simulation to test IPR and [narang2013structured]
 		function F = compute_fig_3004(obj,niter)
 						
@@ -391,6 +392,8 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 		
 		
+
+        % This is a simulation that compares NMSE of bandlimted and MKL method
         function F = compute_fig_4001(obj,niter)
             
 			
