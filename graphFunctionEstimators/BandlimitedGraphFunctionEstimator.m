@@ -11,16 +11,54 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 	
 	properties
 		ch_name = 'BANDLIMITED';
-		m_laplacianEigenvectors;   % N x s_bandwidth matrix with the first
-		s_bandwidth = []%    If defined, then only the first S_BANDWIDTH columns 
-		                %    of m_laplacianEigenvectors are considered as
-		                %    basis		
+		m_laplacian;               % Laplacian matrix
+		
+		s_bandwidth; %    Number of the first eigenvectors of m_laplacian 
+		% that span the signal subspace. If s_bandwidth ==-1, then
+		% s_bandwidth is set to the "cut-off" bandwidth from
+		% [narang2013structured] using a combinatorial Laplacian
+		% [anis2016proxies], which is the max bandwidth that allows 
+		% identifiability of the bandlimited signal given the sampling set
+		% and Laplacian matrix.
+		%
+		
+		proxy_order = 5; % parameter k in [anis2016proxies] used to compute 
+		% the cuttoff frequency. 
+		
+		
+		% backwards compatibility
+		m_laplacianEigenvectors;   % N x P matrix with the P first 
+		% eigenvectors of the Laplacian Matrix (smallest eigenvalues).
+		% Although this property could be obtained from m_laplacian, it is
+		% required for efficiency.
+				
+	end
+	
+	properties(Access = private) % precomputed properties for efficiency
+		v_laplacianEigenvalues_precomp % sorted in increasing order
+		m_laplacianEigenvectors_precomp
 	end
 	
 	methods
 		
 		function obj = BandlimitedGraphFunctionEstimator(varargin)
 			obj@GraphFunctionEstimator(varargin{:});
+		end
+		
+		function obj = set.m_laplacian(obj,L)
+			obj.m_laplacian = L;
+			
+			[V,D] = eig(L);
+			obj.v_laplacianEigenvalues_precomp = diag(D); 
+			if ( norm(imag(diag(D)))/norm(real(diag(D)) ) > .01)
+				warning('Eigenvalues may be complex --> check your Laplacian matrix');
+			end
+			obj.m_laplacianEigenvectors_precomp = V; 				
+		end
+		
+		function obj = set.m_laplacianEigenvectors(obj,L)
+			error('behavior of BandlimitedGraphFunctionEstimator changed: please assign properties m_laplacian and s_bandwidth instead of m_laplacianEigenvectors');
+			
 		end
 		
 	end
@@ -43,23 +81,47 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			%                           function
 			%
 			
-			if ~isempty(obj.s_bandwidth)
-				if( obj.s_bandwidth > size(obj.m_laplacianEigenvectors,2) )
-					error('s_bandwidth cannot be greater than the number of columns provided in m_laplacianEigenvectors');
-				end
-				obj.m_laplacianEigenvectors = obj.m_laplacianEigenvectors(:,obj.s_bandwidth);
+			if isempty(obj.m_laplacian)~=isempty(obj.s_bandwidth)
+				error('Unassigned properties m_laplacian and s_bandwidth');
 			end
-			
-			s_numberOfVertices = size(obj.m_laplacianEigenvectors,1);
-			s_numberOfRealizations = size(m_samples,2);
+			if isempty(obj.s_bandwidth)
+				error('unassigned value of s_bandwidth. Set to -1 to use the cut-off freq. from [narang2013structured]');
+			end
+			if obj.s_bandwidth ~= -1
+				assert(obj.s_bandwidth<=size(obj.m_laplacian,1),'Too large bandwidth')
+				m_eigenvecs = obj.m_laplacianEigenvectors_precomp(:,1:obj.s_bandwidth);
+			end
 						
+			s_numberOfVertices = size(obj.m_laplacian,1);
+			s_numberOfRealizations = size(m_samples,2);						
 			m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
+			
+			
 			for iRealization = 1:s_numberOfRealizations
-				m_PhiB = obj.m_laplacianEigenvectors( m_positions(:,iRealization) , : );
+				
+				if obj.s_bandwidth == -1				
+					s_bw = obj.computeCutoffFrequency(m_positions);
+					m_eigenvecs = obj.m_laplacianEigenvectors_precomp(:,1:s_bw);
+				end
+				
+				m_PhiB = m_eigenvecs( m_positions(:,iRealization) , : );
 				v_alphas = m_PhiB\m_samples(:,iRealization);
-				m_estimate(:,iRealization) = obj.m_laplacianEigenvectors*v_alphas;
+				m_estimate(:,iRealization) = m_eigenvecs*v_alphas;
 			end
 			
+			
+		end
+		
+		
+		function s_bw = computeCutoffFrequency(obj, m_positions)
+			
+			
+			L_S = obj.m_laplacian;
+			L_2 = L_S^(2*obj.proxy_order);
+			
+			omega_S = (  svds(L_2(m_positions,m_positions),1,0)   )^(1/(2*obj.proxy_order));
+			
+			s_bw = sum(obj.v_laplacianEigenvalues_precomp <= omega_S)
 			
 		end
 		

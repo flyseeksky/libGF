@@ -128,6 +128,44 @@ classdef Simulator
 			
 		end
 		
+		
+		function nmse = computeNmse( res_input , res_ref )
+			% NMSE is a matrix with the same size as res_input
+			% res_ref is a scalar/matrix/vector whose dimensions are consistent 
+			% with those of res_input. NMSE contains the normalized mean
+			% squared error
+			%
+			% 
+			
+			% matching the size of res_ref to that of res_input
+			if (size(res_input,1)>1) && (size(res_ref,1)==1 )
+				res_ref = repmat(res_ref,size(res_input,1),1);
+			end
+			if (size(res_input,2)>1) && (size(res_ref,2)==1 )
+				res_ref = repmat(res_ref,1,size(res_input,2));
+			end
+						
+			% mse computation
+			for ncol = size(res_input,2):-1:1
+				for nrow = size(res_input,1):-1:1
+					
+					stat_vals = res_input(nrow,ncol).getByName('stat');
+					ref_vals =  res_ref(nrow,ncol).getByName('stat');
+					
+					nmse_now = 0;
+					for nr = 1:size(stat_vals,3)						
+						nmse_now = nmse_now + sum(sum( (abs(stat_vals(:,:,nr)-ref_vals)).^2))./sum(sum( (abs(ref_vals)).^2));
+					end
+					
+					nmse(nrow,ncol) = nmse_now/size(stat_vals,3);
+				end
+			end
+			
+			
+		end
+		
+		
+		
 		function plot_histograms( d0 , d1 )
 			
 			% truncation
@@ -253,8 +291,8 @@ classdef Simulator
 				inargs{mn} = Simulator.mat_cell_element(inargs_vecs,mn,1);
 			end
 			
-			for mn = 1:N*M			
-			%parfor mn = 1:N*M
+			%for mn = 1:N*M			
+			for mn = 1:N*M
 				    pftic = tic;
 					inargs_now = inargs{mn};
 					

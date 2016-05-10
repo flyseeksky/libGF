@@ -14,6 +14,10 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 				   %       P: number of kernels
         s_mu
         s_sigma    % only valid for single kernel
+		s_type = 'RKHS superposition'; 
+		           % can be 'RKHS superposition' or 'kernel superposition'
+		
+				   
     end
     
     properties (Dependent)
@@ -36,6 +40,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     end
     
     methods
+		
         function obj = MkrGraphFunctionEstimator(varargin)  % constructor
             obj@GraphFunctionEstimator(varargin{:});
         end
@@ -91,7 +96,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             %       m_samples       observed signal
             %       K               kernel matrix for observed part
             % Output:
-            %       alpha           alpha in group lasso format
+            %       a               alpha in group lasso format
             %
             
             S = length(m_samples);
@@ -119,7 +124,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             
             % interpret the result
             a = NaN(S*nKernel,1);
-            for iKernel = 1 : nKernel
+            for iKernel = 1 : nKernel				
                 sqrtKi = A(:, ((iKernel-1)*S+1) : iKernel*S);
                 ri = r( ((iKernel-1)*S+1) : iKernel*S );
                 a( ((iKernel-1)*S+1) : iKernel*S ) = sqrtKi \ ri;
