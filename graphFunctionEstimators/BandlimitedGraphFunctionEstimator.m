@@ -5,12 +5,12 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 	
 	properties % Required by superclass Parameter
 		c_parsToPrint    = {'ch_name','s_bandwidth'};
-		c_stringToPrint  = {'','ASS. BW'};
-		c_patternToPrint = {'%s%s','%s = %d'};
+		c_stringToPrint  = {'',''};
+		c_patternToPrint = {'%s%s','%s%s'};
 	end
 	
 	properties
-		ch_name = 'BANDLIMITED';
+		ch_name = 'Bandlimited';
 		m_laplacian;               % Laplacian matrix
 		
 		s_bandwidth; %    Number of the first eigenvectors of m_laplacian 
@@ -58,6 +58,16 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 		
 		function obj = set.m_laplacianEigenvectors(obj,L)
 			error('behavior of BandlimitedGraphFunctionEstimator changed: please assign properties m_laplacian and s_bandwidth instead of m_laplacianEigenvectors');
+			
+		end
+		
+		function str = s_bandwidth_print(obj)
+			assert(~isempty(obj.s_bandwidth));
+			if obj.s_bandwidth == -1
+				str = 'Ass. B = cut-off freq.';
+			else
+				str = sprintf('Ass. B = %d',obj.s_bandwidth);
+			end
 			
 		end
 		

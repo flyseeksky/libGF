@@ -439,7 +439,8 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 		
 		
-		% Simple simulation to test MKL methods
+		% Simple MC simulation to test MKL methods and compare them with
+		% bandlimited estimators
 		function F = compute_fig_3005(obj,niter)
 						
 			N = 100; % number of vertices			
@@ -492,7 +493,60 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		
+		% Simulation to test parameters for Cortes' MKL
+		% Figure: |theta_i| vs mu for i = 1,..,#kernels
+		% Depicts the sparsity pattern  of theta in IIA
+		% as regularization paramter mu increases, theta would become more
+		% more sparse
+		function F = compute_fig_3006(obj, niter)
+			
+            SNR = 20; % dB
+			N = 100;
+			B = 30; % bandwidth
+            u_Vec = logspace(-6,6,50);
+						
+			% 1. generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.5,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+			
+            % 2. generate graph function
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			v_graphFunction = functionGenerator.realization();
+            %generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
+			
+			% 3. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',50);
+			
+			% 4. generate Kernel matrix
+			sigmaArray = linspace(0.01, 1.5, 20);            			
+            kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();                   
+            
+            % 5. define function estimator
+            estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel,'ch_type','kernel superposition');
+            estimator = estimator.replicate([],{}, ...
+                's_regularizationParameter', num2cell(u_Vec));
+			
+            [m_samples, m_positions] = sampler.sample(v_graphFunction);
+			m_theta = zeros( size(m_kernel,3), length(u_Vec) );
+			v_nmse = zeros( 1 , length(u_Vec) );
+			for icount = 1 : length(u_Vec)				
+				[v_graphFunction_now,~,m_theta(:,icount)] = estimator(icount).estimate(m_samples, m_positions);				 
+				v_nmse(icount) = norm( v_graphFunction - v_graphFunction_now)^2/norm( v_graphFunction )^2;
+			end
+			
+            
+            for icount = 1:length(sigmaArray)
+                legendStr{icount} = sprintf('\\sigma=%2.2f',sigmaArray(icount));
+            end
+			
+			multiplot_array(1,1) = F_figure('X', u_Vec, 'Y', m_theta, 'logx', true, ...
+				'xlab', '\mu', 'ylab', 'Entries of \theta','leg',legendStr,'leg_pos','West');
+			multiplot_array(2,1) = F_figure('X', u_Vec, 'Y', v_nmse, 'logx', true, ...
+				'xlab', '\mu', 'ylab', 'NMSE');
+			F = F_figure('multiplot_array',multiplot_array);
+
+		end
 
         % This is a simulation that compares NMSE of bandlimted and MKL
         % method

@@ -12,6 +12,13 @@ classdef Parameter < matlab.mixin.Heterogeneous
 		% the n-th property of an object of class Parameter will be printed
 		% as   my_sprintf( obj.c_patternToPrint{n} , obj.c_stringToPrint{n} , getfield(obj,obj.c_parsToPrint{n}) );		
 		c_parsToPrint    % cell array of strings containing the name of the parameters to print
+		                 % For example c_parsToPrint =
+		                 % {'par1','par2','par3'}
+						 % To customize the way of printing the value of
+						 % the parameter, just create a method of the form
+						 %    function  str = par1_print(obj)
+						 % that returns the desired string.
+						 %
 		c_stringToPrint  % cell array of strings containing the string for printing each parameter (titles, axes and legends)
 		c_patternToPrint % cell array of strings containing the string pattern for sprintf in titles (e.g. {'%s = %d'})
 	end 
@@ -51,8 +58,13 @@ classdef Parameter < matlab.mixin.Heterogeneous
 		
 		function str = getParameterByNumber( obj1, par_number )
 			obj1 = obj1(1,1);
-			assert(numel(obj1)==1);			
-			str = my_sprintf( obj1.c_patternToPrint{par_number} , obj1.c_stringToPrint{par_number} , my_getfield(obj1,obj1.c_parsToPrint{par_number}) );			
+			assert(numel(obj1)==1);
+			parameterName = obj1.c_parsToPrint{par_number};
+			if ismethod(obj1,[parameterName '_print'])
+				str = eval(['obj1.' parameterName '_print']);
+			else			
+				str = my_sprintf( obj1.c_patternToPrint{par_number} , obj1.c_stringToPrint{par_number} , my_getfield(obj1,obj1.c_parsToPrint{par_number}) );
+			end
 		end
 		
 		function str = getParameterByName( obj1, name )
