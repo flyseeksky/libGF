@@ -10,7 +10,7 @@ classdef UniformGraphFunctionSampler < GraphFunctionSampler
 	end 
 	
 	properties
-		ch_name = 'UNIFORM SAMPLER';
+		ch_name = 'Uniform sampler';
 		s_numberOfSamples
 		s_SNR = Inf;  % signal to noise ratio in dB (Inf <-> no noise)
 	end

@@ -12,6 +12,10 @@ classdef MultikernelSimulations < simFunctionSet
 	
 	methods
 		
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  Generic simulations
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
 		% This is a very simple simulation to test bandlimited LS
 		% estimation
 		function F = compute_fig_1001(obj,niter)
@@ -139,7 +143,7 @@ classdef MultikernelSimulations < simFunctionSet
 			% 4. MKL function estimator
 		    m_laplacian = bandlimitedFunctionGenerator.basis(N);
 			m_kernel = cat(3,pinv(m_laplacian)+1e-10*eye(N),pinv(m_laplacian^2)+1e-10*eye(N));
-			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_mu',1e-5);
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',1e-5);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
 
 			est = [mkl_estimator;mkl_estimator;bl_estimator];
@@ -271,7 +275,7 @@ classdef MultikernelSimulations < simFunctionSet
             sampler = sampler.replicate('s_numberOfSamples', num2cell(S_Vec),[],{}); 
 			
 			% 5. define function estimator
-            estimator = MkrGraphFunctionEstimator('s_mu',mu);
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
             estimator = estimator.replicate([],{}, ...
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
 			
@@ -286,7 +290,7 @@ classdef MultikernelSimulations < simFunctionSet
 		end	
 		
 		% Figure: ||alpha_i|| vs mu
-		% Check the sparsity pattern  of alpha
+		% Depicts the sparsity pattern  of alpha
 		% as regularization paramter mu increases, alpha would become more
 		% more sparse, so more and more ||alpha_i|| will go to zero
 		function F = compute_fig_3002(obj, niter)
@@ -316,7 +320,7 @@ classdef MultikernelSimulations < simFunctionSet
             % 5. define function estimator
             estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel);
             estimator = estimator.replicate([],{}, ...
-                's_mu', num2cell(u_Vec));
+                's_regularizationParameter', num2cell(u_Vec));
 			
             [m_samples, m_positions] = sampler.sample(m_graphFunction);
 			m_alpha = zeros( length(m_samples), size(m_kernel,3), length(u_Vec) );
@@ -335,7 +339,7 @@ classdef MultikernelSimulations < simFunctionSet
             end
 			
 			F = F_figure('X', u_Vec, 'Y', anorm', 'logx', true, ...
-				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr);
+				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','West');
 
 		end
 		
@@ -370,7 +374,7 @@ classdef MultikernelSimulations < simFunctionSet
             % 5. define function estimator
             estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel);
             estimator = estimator.replicate([],{}, ...
-                's_mu', num2cell(u_Vec));
+                's_regularizationParameter', num2cell(u_Vec));
 			
 			
 			% Simulation
@@ -381,7 +385,8 @@ classdef MultikernelSimulations < simFunctionSet
 		end
         
 
-		% Simple simulation to test IPR and [narang2013structured]
+		% Simple simulation to test [narang2013structured] and
+		% [anis2016proxies] cut-off freq. estimation method
 		function F = compute_fig_3004(obj,niter)
 						
 			N = 100; % number of vertices			
@@ -404,22 +409,22 @@ classdef MultikernelSimulations < simFunctionSet
 			sampler = sampler.replicate('s_SNR',num2cell(SNR_vec),'s_numberOfSamples',num2cell(S_vec));		
 						
 			% 3. BL graph function estimator
-			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
-			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
-			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+			bl_estimator_known_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator_known_freq.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator_known_freq = bl_estimator_known_freq.replicate('s_bandwidth',num2cell(B_vec),'',{});
 					
-			% 4. IPR estimator
-			ipr_estimator = IPRGraphFunctionEstimator('m_laplacian',m_laplacian);			
-			ipr_estimator.s_bandwidth = B;
-			
+			% 4. BL estimator with unknown frequency
+			bl_estimator_unknown_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',-1);			
+			bl_estimator_unknown_freq.c_replicatedVerticallyAlong = {'ch_name','s_bandwidth'};
+						
 			% 5. MKL function estimator		    
 			sigma2Array = linspace(0.1, .5 , 20);            
             kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2Array));
 			m_kernel = kG.getKernelMatrix();
-			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_mu',1e-3);
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',1e-3);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
 
-			est = [mkl_estimator;mkl_estimator;bl_estimator;ipr_estimator];
+			est = [mkl_estimator;mkl_estimator;bl_estimator_known_freq;bl_estimator_unknown_freq];
 			
 			% Simulation
 			res = Simulator.simStatistic(niter,generator,sampler,est);
@@ -428,13 +433,69 @@ classdef MultikernelSimulations < simFunctionSet
 			% Representation			
 			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
-                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',[0 1.5],'ylab','NMSE');
+                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',...
+				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
+			
+		end
+		
+		
+		% Simple simulation to test MKL methods
+		function F = compute_fig_3005(obj,niter)
+						
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the estimated function
+			B_vec =         [20]; % assumed bandwidth for estimation
+			SNR_vec = [25 25 25 25]; % SNR for each curve (first 2 for multikernel)
+			
+			S_vec = 10:10:100;
+			
+			% 1. define graph function generator
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.9,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;
+			m_laplacian = graph.getLaplacian(); 
+			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			graphFunction = bandlimitedFunctionGenerator.realization();
+			generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			
+			% 2. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',20);			
+			sampler = sampler.replicate('s_SNR',num2cell(SNR_vec),'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. BL graph function estimator
+			bl_estimator_known_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator_known_freq.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator_known_freq = bl_estimator_known_freq.replicate('s_bandwidth',num2cell(B_vec),'',{});
+					
+			% 4. BL estimator with unknown frequency
+			bl_estimator_unknown_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',-1);			
+			bl_estimator_unknown_freq.c_replicatedVerticallyAlong = {'ch_name','s_bandwidth'};
+						
+			% 5. MKL function estimators		    
+			sigma2Array = linspace(0.1, .5 , 20);            
+            kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2Array));
+			m_kernel = kG.getKernelMatrix();
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',1e-3);
+			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
+			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+
+			est = [mkl_estimator;bl_estimator_known_freq;bl_estimator_unknown_freq];
+			
+			% Simulation
+			res = Simulator.simStatistic(niter,generator,sampler,est);
+			mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
+                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',...
+				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
 			
 		end
 		
 		
 
-        % This is a simulation that compares NMSE of bandlimted and MKL method
+        % This is a simulation that compares NMSE of bandlimted and MKL
+        % method
         function F = compute_fig_4001(obj,niter)
             
 			
@@ -487,7 +548,7 @@ classdef MultikernelSimulations < simFunctionSet
             %c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
             
             for i = 1 : length(sigmaArray)
-                mk_estimator(i) = MkrGraphFunctionEstimator('s_mu',mu_Vec(i),...
+                mk_estimator(i) = MkrGraphFunctionEstimator('s_regularizationParameter',mu_Vec(i),...
                     's_sigma',sigmaArray(i), 'm_kernel', c_kernel{i}, ...
                     'c_replicatedVerticallyAlong', {'legendString'});
             end

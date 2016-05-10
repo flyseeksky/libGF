@@ -18,33 +18,19 @@ classdef Parameter < matlab.mixin.Heterogeneous
 	
 	properties
 		c_replicatedVerticallyAlong = {};   % property names in this list 
-		                                    % are used to make legends 		
-		                                    % In an array of objects of
-		                                    % class Parameter, only the
-		                                    % values of this property for
-		                                    % the objects in the first
-		                                    % column are considered. If
-		                                    % this property is empty for
-		                                    % the entry (n,1), then the one
-		                                    % corresponding to the entry
-		                                    % (m,1) is used, where m is the
-		                                    % largest index less than n
-		                                    % such that the element (m,1)
-		                                    % has a non-empty
-		                                    % c_replicatedVerticallyAlong
-		                                    % field.
-											%
-											% If all legend entries have to
-											% have the same structure, just
-											% set this field for the (1,1)
-											% element. 
+		% are used to make legends In an array of objects of class 
+		% Parameter, only the values of this property for the objects in the first
+		% column are considered. If this property is empty for the entry
+		% (n,1), then the one corresponding to the entry (m,1) is used,
+		% where m is the largest index less than n such that the element
+		% (m,1) has a non-empty c_replicatedVerticallyAlong field.
+		%
+		% If all legend entries have to have the same structure, just set
+		% this field for the (1,1) element.
 		
 		c_replicatedHorizontallyAlong = {}; % property name in this list is 
-		                                    % used to make the label of the
-		                                    % x-axis. For arrays of objects
-		                                    % of class Parameter, the only
-		                                    % considered is the (1,1)
-		                                    % entry. 
+		% used to make the label of the x-axis. For arrays of objects of
+		% class Parameter, the only considered is the (1,1) entry.
 	end
 	
 	properties(Constant)
@@ -297,7 +283,7 @@ classdef Parameter < matlab.mixin.Heterogeneous
 			end
 			
 			list = Parameter.getTitleList(varargin{:});
-			tit = ParameterArray.strListToText(list,chars_per_line);
+			tit = Parameter.strListToText(list,chars_per_line);
 
 		end				
 		

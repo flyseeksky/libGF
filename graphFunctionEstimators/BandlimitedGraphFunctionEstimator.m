@@ -68,6 +68,7 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 		function m_estimate = estimate(obj,m_samples,m_positions)
 			%
 			% Input:
+			%
 			% M_SAMPLES                 S x S_NUMBEROFREALIZATIONS  matrix with
 			%                           samples of the graph function in
 			%                           M_GRAPHFUNCTION
@@ -75,7 +76,8 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			%                           containing the indices of the vertices
 			%                           where the samples were taken
 			%
-			% Output:                   N x S_NUMBEROFREALIZATIONS matrix. N is
+			% Output:                   
+			% M_ESTIMATE                N x S_NUMBEROFREALIZATIONS matrix. N is
 			%                           the number of nodes and each column
 			%                           contains the estimate of the graph
 			%                           function
@@ -100,7 +102,7 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			for iRealization = 1:s_numberOfRealizations
 				
 				if obj.s_bandwidth == -1				
-					s_bw = obj.computeCutoffFrequency(m_positions);
+					s_bw = obj.computeCutoffFrequency(m_positions(:,iRealization));
 					m_eigenvecs = obj.m_laplacianEigenvectors_precomp(:,1:s_bw);
 				end
 				
@@ -116,12 +118,17 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 		function s_bw = computeCutoffFrequency(obj, m_positions)
 			
 			
-			L_S = obj.m_laplacian;
-			L_2 = L_S^(2*obj.proxy_order);
+			L = obj.m_laplacian;
+			L_power = L^(2*obj.proxy_order);
 			
-			omega_S = (  svds(L_2(m_positions,m_positions),1,0)   )^(1/(2*obj.proxy_order));
+			% svds(L_power(m_positions,m_positions),1,0) does not always work, even
+			% after setting a high tolerance
+			v_svals = svd(L_power(m_positions,m_positions));
+			min_sval = min(v_svals);
+			omega_S = (  min_sval  )^(1/(2*obj.proxy_order));
 			
-			s_bw = sum(obj.v_laplacianEigenvalues_precomp <= omega_S)
+			
+			s_bw = sum(obj.v_laplacianEigenvalues_precomp <= omega_S);
 			
 		end
 		
