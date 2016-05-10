@@ -1,7 +1,8 @@
 %
 %  FIGURES FOR THE PAPER ON MULTIKERNEL
 %
-% 
+%  TSP paper figures: 2004
+%
 
 classdef MultikernelSimulations < simFunctionSet
 	
@@ -118,35 +119,80 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
-		% Figure to illustrate the interpolating functions (columns of the
-		% kernel matrix)
+		% Figure to check analytic expression for interpolating functions
+		% (columns of the kernel matrix) in a circular graph
 		function F = compute_fig_2003(obj,niter)
 			
 			vertexNum = 100;
-			columnInd = 50;
-			
-			sigma2 = .1;
-			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
-			KcolDiffusionKernel = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2) , columnInd);
-			
-			% computation via analytic expression
-			epsilon = 1e-6;
+			columnInd = 25;
+			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
+			L = diag(sum(A,2))-A;
+						
+			% Computation through analytic expression for
+			% a) Laplacian regularization
+			epsilon = .01;
 			rLaplacianReg = @(lambda,epsilon) lambda + epsilon;
 			KcolLaplacianReg_analytic = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,epsilon) , columnInd);
 			
-			% direct computation
-			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
-			L = diag(sum(A,2))-A;
+			% b) Diffusion kernel
+			sigma2 = 3;
+			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
+			KcolDiffusionKernel_analytic = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2) , columnInd);
+						
+			% direct computation for
+			
+			% a) regularized laplacian
 			h_rFun_inv = @(lambda) 1./rLaplacianReg(lambda,epsilon);
 			kG = LaplacianKernel('m_laplacian',L,'h_r_inv',{h_rFun_inv});
 			m_KernelMatrix = kG.getKernelMatrix;
 			KcolLaplacianReg_direct = m_KernelMatrix(:,columnInd);
 			
+			% a) diffusion kernel
+			h_rFun_inv = @(lambda) 1./rDiffusionKernel(lambda,sigma2);
+			kG = LaplacianKernel('m_laplacian',L,'h_r_inv',{h_rFun_inv});
+			m_KernelMatrix = kG.getKernelMatrix;
+			KcolDiffusionKernel_direct = m_KernelMatrix(:,columnInd);
+			
+			
+			F(1) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_direct';KcolLaplacianReg_analytic'],'styles',{'-','--'});
+			F(2) = F_figure('X',1:vertexNum,'Y',[KcolDiffusionKernel_direct';KcolDiffusionKernel_analytic'],'styles',{'-','--'});
+			
+		end
+		
+		% Figure to illustrate the interpolating functions (columns of the
+		% kernel matrix) in a circular graph
+		function F = compute_fig_2004(obj,niter)
+			
+			vertexNum = 100;
+			columnInd = 25;
+			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
+			L = diag(sum(A,2))-A;
 						
-			%F = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic';KcolLaplacianReg_direct']);			
-			multiplot_array(1) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_direct']);
-			multiplot_array(2) = F_figure('X',1:vertexNum,'Y',[KcolLaplacianReg_analytic']);
-			F = F_figure('multiplot_array',multiplot_array);
+			% Computation through analytic expression for
+			% a) Laplacian regularization
+			rLaplacianReg = @(lambda,s2) 1+s2*lambda;
+			v_sigma2_LaplacianReg = [1 20 100];
+			for i_sigma2 = length(v_sigma2_LaplacianReg):-1:1				
+				KcolLaplacianReg(i_sigma2,:) = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,v_sigma2_LaplacianReg(i_sigma2)) , columnInd)';
+				leg{i_sigma2} = sprintf('Laplacian reg. (\\sigma^2 = %g)',v_sigma2_LaplacianReg(i_sigma2));
+			end
+			KcolLaplacianReg = diag(1./max(KcolLaplacianReg,[],2))*KcolLaplacianReg;
+			
+			
+			% b) Diffusion kernel			
+			v_sigma2_DiffusionKernel = [1 20 100];
+			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);
+			i_legLen = length(leg);
+			for i_sigma2 = length(v_sigma2_DiffusionKernel):-1:1
+				KcolDiffusionKernel(i_sigma2,:) = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,v_sigma2_DiffusionKernel(i_sigma2)) , columnInd)';
+				leg{i_sigma2+i_legLen} = sprintf('Diffusion Kernel (\\sigma^2 = %g)',v_sigma2_DiffusionKernel(i_sigma2));
+			end		
+			KcolDiffusionKernel = diag(1./max(KcolDiffusionKernel,[],2))*KcolDiffusionKernel;
+			
+			caption = sprintf('%d-th column of the kernel matrix for a circular graph with N = %d vertices.',columnInd,vertexNum);
+			m_Y = [KcolLaplacianReg;KcolDiffusionKernel];
+			F = F_figure('X',1:2:vertexNum,'Y',m_Y(:,1:2:vertexNum),'leg',leg,'styles',{'-','-x','-o','--','--x','--o'},'colorp',3,'xlab','Vertex index (n)','ylab','Function value','caption',caption);
+			
 		end
 		
 		
@@ -155,12 +201,13 @@ classdef MultikernelSimulations < simFunctionSet
 		% %%  simulations with MKL on synthetic data
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
-		% Simulation to test the regularization parameter
+
+		% Figure: NMSE vs sigma (diffusion kernel parameter)
+		% This figure will show the importance of choosing the right
+		%   parameter (sigma for diffusion kernel, may change to other
+		%     parameter if different kernel types are used.)
 		function F = compute_fig_3001(obj,niter)
-            % Figure: NMSE vs sigma (diffusion kernel parameter)
-			% This figure will show the importance of choosing the right 
-            %   parameter (sigma for diffusion kernel, may change to other
-            %     parameter if different kernel types are used.)
+			
 			
 			SNR = 20; % dB
 			N = 100;
@@ -199,13 +246,13 @@ classdef MultikernelSimulations < simFunctionSet
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','\sigma','ylab','Normalized MSE',...
                 'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu));		  
-        end	
-        
-        function F = compute_fig_3002(obj, niter)
-			% Figure: ||alpha_i|| vs mu
-			% Check the sparsity pattern  of alpha
-			% as regularization paramter mu increases, alpha would become more
-			% more sparse, so more and more ||alpha_i|| will go to zero
+		end	
+		
+		% Figure: ||alpha_i|| vs mu
+		% Check the sparsity pattern  of alpha
+		% as regularization paramter mu increases, alpha would become more
+		% more sparse, so more and more ||alpha_i|| will go to zero
+		function F = compute_fig_3002(obj, niter)
 			
             SNR = 20; % dB
 			N = 100;
@@ -255,12 +302,12 @@ classdef MultikernelSimulations < simFunctionSet
 
 		end
 		
+		% Figure: NMSE vs mu (regularization parameter)
+		% Find the best regularization paramter for each method
+		%    To find the best regularization paramter for other methods,
+		%    only need to replace the estimator
 		function F = compute_fig_3003(obj, niter)
-			% Figure: NMSE vs mu (regularization parameter)
-			% Find the best regularization paramter for each method
-			%    To find the best regularization paramter for other methods,
-			%    only need to replace the estimator 
-			
+						
             SNR = 20; % dB
 			N = 100;
             u_Vec = logspace(-6,0,50);
@@ -294,8 +341,56 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			F = F_figure('X', u_Vec, 'Y', mse, 'logx', true, ...
 				'xlab', '\mu', 'ylab', 'MSE');
-        end
+		end
         
+		% Simple simulation to test IPR and [narang2013structured]
+		function F = compute_fig_3004(obj,niter)
+						
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the estimated function
+			B_vec =         [20 20]; % assumed bandwidth for estimation
+			SNR_vec = [15 25 15 25]; % SNR for each curve (first 2 for multikernel)
+			
+			S_vec = 10:10:100;
+			
+			% 1. define graph function generator
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.9,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;
+			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			graphFunction = bandlimitedFunctionGenerator.realization();
+			generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			
+			% 2. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',20);			
+			sampler = sampler.replicate('s_SNR',num2cell(SNR_vec),'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. BL graph function estimator
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',bandlimitedFunctionGenerator.basis(N));			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+					
+			% 4. MKL function estimator
+		    m_laplacian = graph.getLaplacian(); 
+			sigma2Array = linspace(0.1, .5 , 20);            
+            kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2Array));
+			m_kernel = kG.getKernelMatrix();
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_mu',1e-3);
+			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+
+			est = [mkl_estimator;mkl_estimator;bl_estimator];
+			
+			% Simulation
+			res = Simulator.simStatistic(niter,generator,sampler,est);
+			mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
+                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',[0 1.5],'ylab','NMSE');
+			
+		end
+		
+		
         function F = compute_fig_4001(obj,niter)
             
 			
@@ -363,7 +458,10 @@ classdef MultikernelSimulations < simFunctionSet
             F = F_figure('X',S_Vec,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','sample size','ylab','Normalized MSE');	  
-        end
+		end
+		
+		
+		
 	end
 	
 	

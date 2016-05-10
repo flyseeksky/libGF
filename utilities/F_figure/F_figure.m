@@ -363,35 +363,36 @@ classdef F_figure
 		
 		
 		function represent_axis_2D(F)
-				ncurves = size(F.Y,1);
+			ncurves = size(F.Y,1);
+			assert(length(F.styles)>=ncurves);
 			if isempty(F.X)
 				F.X = 1:size(F.Y,2);
 			end
 			if size(F.X,1) ~= ncurves
 				if size(F.X,1) == 1
-					F.X = ones(ncurves,1)*F.X;					
+					F.X = ones(ncurves,1)*F.X;
 				else
 					error('size(X,1) must be either 1 or size(Y,1)');
-				end				
+				end
 			end
-						
+			
 			for kr=1:ncurves
 				assert(~isempty(F.styles{kr}));
-				switch(F.plot_type_2D)					
-					case 'plot'	
-                        if F.logx
-                            if F.logy
-                                loglog(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
-                            else
-                                semilogx(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
-                            end						
-                        else
-                            if F.logy
-                                semilogy(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
-                            else
-                                plot(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
-                            end
-                        end
+				switch(F.plot_type_2D)
+					case 'plot'
+						if F.logx
+							if F.logy
+								loglog(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+							else
+								semilogx(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+							end
+						else
+							if F.logy
+								semilogy(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+							else
+								plot(F.X(kr,:),F.Y(kr,:),F.styles{kr},'LineWidth',2);
+							end
+						end
 					case 'stem'
 						stem(F.X(kr,:),F.Y(kr,:),F.styles{kr});
 					case 'bar'
@@ -399,10 +400,10 @@ classdef F_figure
 					otherwise
 						error('unrecognized plot type')
 				end
-				hold on				
+				hold on
 			end
 			hold off
-	        if strcmp(F.plot_type_2D,'bar')  % bar color cannot be set like plot objects
+			if strcmp(F.plot_type_2D,'bar')  % bar color cannot be set like plot objects
 				return
 			end
 			% colors
@@ -415,8 +416,8 @@ classdef F_figure
 			end
 			
 			if ~isempty(F.gstyle)
-				grid on				
-				set(gca,'GridLineStyle',F.gstyle);				
+				grid on
+				set(gca,'GridLineStyle',F.gstyle);
 			end
 			
 			if ~isempty(F.EB)

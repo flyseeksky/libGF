@@ -47,7 +47,7 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 				if( obj.s_bandwidth > size(obj.m_laplacianEigenvectors,2) )
 					error('s_bandwidth cannot be greater than the number of columns provided in m_laplacianEigenvectors');
 				end
-				obj.m_laplacianEigenvectors = obj.m_laplacianEigenvectors(:,obj.s_bandwidth);
+				obj.m_laplacianEigenvectors = obj.m_laplacianEigenvectors(:,1:obj.s_bandwidth);
 			end
 			
 			s_numberOfVertices = size(obj.m_laplacianEigenvectors,1);
