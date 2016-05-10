@@ -623,14 +623,14 @@ classdef MultikernelSimulations < simFunctionSet
 		function F = compute_fig_3302(obj,niter)
 						
 			N = 100; % number of vertices			
-			B = 20; % bandwidth of the estimated function
-			B_vec =         [20]; % assumed bandwidth for estimation
-			SNR_vec = [25 25 25 25]; % SNR for each curve (first 2 for multikernel)
+			B = 20; % bandwidth of the true function
+			B_vec =         [20 30 -1]; % assumed bandwidth for estimation
+			SNR = 5; % dB
 			
 			S_vec = 10:10:100;
 			
 			% 1. define graph function generator
-			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.9,'s_numberOfVertices',N);
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.7 ,'s_numberOfVertices',N);
 			graph = graphGenerator.realization;
 			m_laplacian = graph.getLaplacian(); 
 			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
@@ -638,27 +638,22 @@ classdef MultikernelSimulations < simFunctionSet
 			generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
 			
 			% 2. define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_SNR',20);			
-			sampler = sampler.replicate('s_SNR',num2cell(SNR_vec),'s_numberOfSamples',num2cell(S_vec));		
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
+			sampler = sampler.replicate('',[],'s_numberOfSamples',num2cell(S_vec));		
 						
 			% 3. BL graph function estimator
-			bl_estimator_known_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
-			bl_estimator_known_freq.c_replicatedVerticallyAlong = {'ch_name'};
-			bl_estimator_known_freq = bl_estimator_known_freq.replicate('s_bandwidth',num2cell(B_vec),'',{});
-					
-			% 4. BL estimator with unknown frequency
-			bl_estimator_unknown_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',-1);			
-			bl_estimator_unknown_freq.c_replicatedVerticallyAlong = {'ch_name','s_bandwidth'};
-						
-			% 5. MKL function estimators		    
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+								
+			% 4. MKL function estimators		    
 			sigma2Array = linspace(0.1, .5 , 20);            
             kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2Array));
-			m_kernel = kG.getKernelMatrix();
-			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',1e-3);
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
 			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
 
-			est = [mkl_estimator;bl_estimator_known_freq;bl_estimator_unknown_freq];
+			est = [mkl_estimator;bl_estimator];
 			
 			% Simulation
 			res = Simulator.simStatistic(niter,generator,sampler,est);
