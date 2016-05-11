@@ -45,7 +45,11 @@ classdef LaplacianKernel < Parameter
                 Kp = V * diag(r(d)) * V.';
                 t_kernelMatrix(:,:,p) = ( Kp + Kp' )/2;
             end
-        end
+		end
+		
+		
+		
+		
     end
     
     % type specific methods
@@ -68,7 +72,33 @@ classdef LaplacianKernel < Parameter
                 h_r_inv{iSigma} = @(lambda) 1./(1 + sigma^2 * lambda);
             end
             
+		end
+		
+		% bandlimited kernel
+		function h_r_inv = bandlimitedKernelFunctionHandle( m_laplacian , v_bandwidth , s_beta)
+			%   h_r_inv:  cell array of function handlers to create a
+			%   bandlimited kernel:
+			%                 |  1/s_beta      if     lambda <=  lambda_B
+			%   r_B(lambda) = |
+			%                 |  s_beta        otherwise
+			% 
+			%  where lambda_B is the B-th smallest eigenvalue of the Laplacian
+			% v_bandwidth:     nKernels-long vector with the values of B
+			
+			assert(~isempty(m_laplacian));
+			[~,D] = eig(m_laplacian);
+			v_evals = diag(D); % eigenvalues sorted in ascending order
+            v_lambda_B = v_evals(v_bandwidth);
+			
+            for iKernel = length(v_lambda_B):-1:1                
+                h_r_inv{iKernel} = @(lambda) 1./(...
+				   1/s_beta*(lambda<=v_lambda_B(iKernel)) + s_beta*(lambda>v_lambda_B(iKernel))...
+				);
+            end
+            
         end
+		
+		
         
         
     end

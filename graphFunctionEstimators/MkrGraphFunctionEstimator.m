@@ -2,9 +2,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 'legendString','ch_type'};
-		c_stringToPrint  = {'', '',''};
-		c_patternToPrint = {'%s%s', '%s%s','%s%s'};
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','b_finishSingleKernel'};
+		c_stringToPrint  = {'', '','',''};
+		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s%s'};
     end
     
     properties
@@ -20,6 +20,13 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 				   %
 				   % 'kernel superposition': IIA algorithm from
 				   % [cortes2009regularization]
+               				   
+        b_finishSingleKernel = 0; % if 1, then a last regression step
+		           % performed with the kernel that has strongest weight.
+				   % Current version implements only ridge regression. 
+        s_finishRegularizationParameter =[]; % reg parameter for finishing 
+		           % with ridge regression. If empty, it is set equal to
+		           % s_regularizationParameter.
 				   
         % IIA parameters
 		s_IIARadius = 1; 
@@ -47,8 +54,16 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             else
                 str = sprintf('%d kernels', nKernels);
             end
-        end
-    end
+		end
+		
+		function str = b_finishSingleKernel_print(obj)
+			if obj.b_finishSingleKernel
+				str = 'Single kernel finish';
+			else
+				str = '';
+			end
+		end
+	end
     
     methods
 		
@@ -84,6 +99,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			end						
             [N,Np,nKernel] = size(obj.m_kernel);  % N is # of vertices
             assert(N==Np, 'Kernel matrix should be square');
+			assert(size(m_samples,2)==1,'not implemented');
 			
 			% Kernel preparation and scaling
 			K_observed = obj.m_kernel(m_positions, m_positions, :);
@@ -106,6 +122,16 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 						v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
 					end
 					v_theta = [];
+					if obj.b_finishSingleKernel
+						% select kernel with more weight
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1))
+						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
+						if isempty(obj.s_finishRegularizationParameter)
+							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
+						end
+						m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_finishRegularizationParameter*eye(size(m_samples,1)))\m_samples;
+						v_estimate = m_main_kernel(:,m_positions)*m_alpha;
+					end
 				case 'kernel superposition'
 					[m_alpha,v_theta]=  obj.estimateAlphaKernelSuperposition( m_samples, K_observed ) ;
 					% undo scaling
@@ -113,6 +139,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					% recover signal on whole graph
 					m_learnedKernel = obj.thetaToKernel(obj.m_kernel(:, m_positions, :),v_theta);
 					v_estimate = m_learnedKernel*m_alpha;
+					if obj.b_finishSingleKernel
+						error('not implemented');
+					end
 					
 				otherwise
 					error('unrecognized property ch_type')
