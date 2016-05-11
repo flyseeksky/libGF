@@ -1,7 +1,8 @@
+
+simulations/MultikernelSimulations_data/
+simulations/SemiParametricSimulations_data/
 *.m~
 *.asv
 *.pdf
 *.log
 *.dat 
-simulations/MultikernelSimulations_data/*
-simulations/SemiParametricSimulations_data/*
