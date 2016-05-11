@@ -1,5 +1,5 @@
 
-classdef ReadMovieLensDataset
+classdef ReadMovieLensDataset < ReadDataset
 	
 	
 	methods
@@ -42,7 +42,11 @@ classdef ReadMovieLensDataset
 					m_test(TestData(icount,1),TestData(icount,2),s_setInd)=TestData(icount,3);
 				end
 			
-			end			
+			end		
+			
+			
+			% NaN and range [0,1]
+			
 			
 		end
 		

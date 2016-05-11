@@ -367,7 +367,11 @@ classdef SemiParametricSimulations < simFunctionSet
 			F = F_figure('X',(1:size(gap,1)),'Y',gap','xlab','number of iterations','ylab','dual-primal gap','leg','Semi-parametric (\epsilon-IL)','logy',1);
 			F.pos=[680 729 509 249];
 		end
-		%% Real data simulations 
+		
+		
+		
+		
+		%% Real data simulations
 		%  Data used: Movielens Data
 		%  Goal: compare the NMSE error for the known etries..
 		%  IS NOT CORRECT VERSION DOES NOT FIND THE RIGHT NMSE
@@ -776,6 +780,39 @@ classdef SemiParametricSimulations < simFunctionSet
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
+		
+		
+	    %% Simulations from Narang et al, LOCALIZED ITERATIVE METHODS FOR 
+		% INTERPOLATION IN GRAPH STRUCTURED DATA, 2013
+		%
+		% We will code this here and then make a simulator
+		%
+		function F = compute_fig_4001(obj,niter)
+			
+			% obtain data set
+			t_T = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
+			s_userNum = size(t_T,1);
+			s_itemNum = size(t_T,2);
+			s_foldCrossvalidationNum = size(t_T,3);
+			
+			for s_CVInd = 1:s_foldCrossvalidationNum
+				m_training = ReadDataset.mergeDataMatrices(t_T(:,:,[1:s_CVInd-1 s_CVInd+1:s_foldCrossvalidationNum] ));
+				m_test = t_T(:,:,s_CVInd);
+				
+				for s_userInd = 1:s_userNum
+					
+					[v_positions_train,v_samples_train] = ReadDataset.
+					
+					
+					
+					
+				end
+			
+			end
+			
+			F = [];
+		end
+		
 	end
 	
 	
@@ -822,7 +859,7 @@ classdef SemiParametricSimulations < simFunctionSet
 		
 		
 		%estimates the normalized mean squared error
-		function res=estimateNormalizedMeanSquaredError(m_est,m_observed)
+		function res = estimateNormalizedMeanSquaredError(m_est,m_observed)
 			res=0;
 			for i=1:size(m_est,2)
 				res=res+norm(m_est(:,i)-m_observed(:,i))^2/norm(m_observed(:,i))^2;
@@ -830,13 +867,18 @@ classdef SemiParametricSimulations < simFunctionSet
 			res=(1/size(m_est,2))*res;
 		end
 		%estimates the root mean squared error over the known values
-		function res=estimateMeanSquaredError(m_est,m_observed)
+		function res = estimateMeanSquaredError(m_est,m_observed)
 			res=0;
 			for i=1:size(m_est,2)
 				res=res+norm(m_est(:,i)-m_observed(:,i))^2;
 			end
 			res=(1/size(m_est,2))*res;
 		end
+		
+		
+		% Functions for the recommender systems simulator
+		
+		
 		
 	end
 	

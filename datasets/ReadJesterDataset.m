@@ -1,5 +1,5 @@
 
-classdef ReadJesterDataset
+classdef ReadJesterDataset < ReadDataset
 
 	methods(Static)
 		
@@ -25,12 +25,16 @@ classdef ReadJesterDataset
 			m_ratings = xlsread(ch_fileName); % value 99 means no rating
 			m_ratings = m_ratings(:,2:end); % remove the first column, which contains total number of ratings for each user			
 			
+			% NaN and range [0,1]
+			
 			% Select 1412 users (those with more ratings?) --> subtable
 			
 			% Select randomly a subset of 100.000 ratings 
 			
 			
 			% Create 5 disjoint sets (slabs of a table)
+			
+			
 			
 		end
 		
