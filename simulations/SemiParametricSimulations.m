@@ -789,26 +789,48 @@ classdef SemiParametricSimulations < simFunctionSet
 		%
 		function F = compute_fig_4001(obj,niter)
 			
+			% estimator = 
+			
+			
 			% obtain data set
 			t_T = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
 			s_userNum = size(t_T,1);
 			s_itemNum = size(t_T,2);
 			s_foldCrossvalidationNum = size(t_T,3);
 			
+			v_rmse = NaN(1,s_foldCrossvalidationNum);
 			for s_CVInd = 1:s_foldCrossvalidationNum
 				m_training = ReadDataset.mergeDataMatrices(t_T(:,:,[1:s_CVInd-1 s_CVInd+1:s_foldCrossvalidationNum] ));
 				m_test = t_T(:,:,s_CVInd);
+				graph = Graph.constructFromTable(m_training,'cosine');
 				
-				for s_userInd = 1:s_userNum
+				
+				% computation of RMSE
+				for s_userInd = s_userNum:-1:1
 					
-					[v_positions_train,v_samples_train] = ReadDataset.
+					v_training = m_training(s_userInd,:)';					
+					v_trainingEntries = find(~isnan(v_training));
+					v_trainingSamples = v_training(v_trainingEntries);
 					
+					v_test = m_test(s_userInd,:)';					
+					v_testEntries = find(~isnan(v_test));
+					v_testSamples = v_training(v_testEntries);
 					
+					% estimation
+					sideInfo.v_sampledEntries = v_trainingEntries;
+					sideInfo.v_wantedEntries = v_testEntries;
+					sideInfo.graph = graph;
+					estimate = estimator.estimate(v_trainingSamples,sideInfo);
 					
+					% error computation
+					v_squaredError(s_userInd) = norm( v_testSamples - estimate.v_wantedSamples )^2;
+					s_estimatedEntriesNum(s_userInd) = length( v_testEntries );
 					
 				end
-			
+				v_rmse(s_CVInd) = sum( v_squaredError )/sum( s_estimatedEntriesNum );
 			end
+			
+			rmse = sqrt( mean(v_rmse) )
 			
 			F = [];
 		end
@@ -875,8 +897,6 @@ classdef SemiParametricSimulations < simFunctionSet
 			res=(1/size(m_est,2))*res;
 		end
 		
-		
-		% Functions for the recommender systems simulator
 		
 		
 		

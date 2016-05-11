@@ -14,8 +14,7 @@ classdef Graph
 				obj =  assignParametersByName(obj,varargin{:});
 			end	
 		end
-		
-		
+				
 		function m_L = getLaplacian(obj)						
 			v_degrees = sum(obj.m_adjacency,2);
 			m_L = diag(v_degrees) - obj.m_adjacency;
@@ -28,14 +27,11 @@ classdef Graph
 			m_L = obj.getLaplacian;
 			[m_V,~] = eig(m_L);
 		end
-		
-		
+				
 		function s_n = getNumberOfVertices(obj)
 			s_n = size(obj.m_adjacency,1);			
         end
-        
-
-		
+        		
 		function c_components = getComponents(obj)
 			% (To be written)
 			%
@@ -137,11 +133,18 @@ classdef Graph
 			assert(size(v_f,1) == size(obj.m_adjacency,1));
 			v_f_tilde = obj.getLaplacianEigenvectors'*v_f;
 		end
-				
+						
+		function graph = nearestNeighborsSubgraph(obj,s_neighborsNum)
+			% delete all but the s_neighborsNum strongest links of each
+			% edge
+			
+		end
+		
 	end
 	
 	methods(Static)
-% 		function G = constructViaFactorAnalysis( m_functionValues , alpha , beta )
+		
+		function G = constructViaFactorAnalysis( m_functionValues , alpha , beta )
 % 			% (To be written)
 % 			%
 % 		    % Construct graph from signal values using [Dong et al. 2015]
@@ -160,7 +163,8 @@ classdef Graph
 % 			m_adjacency_est = [];
 % 			G = Graph('m_adjacency',m_adjacency_est);
 % 			
-% 		end
+		end
+		
 		function m_adjacency= createAdjacencyFromLaplacian(m_laplacian)
             m_adjacency=eye(size(m_laplacian)).*diag(diag(m_laplacian))-m_laplacian;
 

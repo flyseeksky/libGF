@@ -16,21 +16,39 @@ classdef GraphFunctionEstimator < Parameter
 	
 	methods(Abstract)
 				
-		m_estimate = estimate(obj,m_samples,m_positions);			
+		estimate = estimate(obj,m_samples,sideInfo);			
 		%
 		% Input:
 		% M_SAMPLES                 S x S_NUMBEROFREALIZATIONS  matrix with
 		%                           samples of the graph function in
 		%                           M_GRAPHFUNCTION 
-		% M_POSITIONS               S x S_NUMBEROFREALIZATIONS matrix
-		%                           containing the indices of the vertices
-		%                           where the samples were taken
+		% sideInfo                  It can be either:
+		%      a) an S x S_NUMBEROFREALIZATIONS matrix containing the
+		%      indices of the vertices where the samples were taken
+		%      b) a 1 x S_NUMBEROFREALIZATIONS vector of structs with fields
+		%         sideInfo(i).v_sampledEntries:  S x 1
+		%                           vector where each column contains the
+		%                           indices of the sampled vertices
+		%         sideInfo(i).v_wantedEntries:  W x 1
+		%                           vector where each column contains the
+		%                           indices of the desired vertices. If not
+		%                           defined, it is assumed that this field
+		%                           is 1:N.
+		%         sideInfo(i).graph: graph over which the signal has been
+		%                           sampled
 		%
 		% Output:                   
-		% M_ESTIMATE                N x S_NUMBEROFREALIZATIONS matrix. N is
-		%                           the number of nodes and each column
-		%                           contains the estimate of the graph
-		%                           function
+		% estimate                  It can be either:
+		%      a) an N x S_NUMBEROFREALIZATIONS matrix. N is the number of
+		%      nodes and each column contains the estimate of the graph
+		%      function 
+		%      b) a 1 x S_NUMBEROFREALIZATIONS vector of structs with
+		%      fields
+		%         estimate(i).v_wantedSamples: W x 1 vector containing the
+		%                            estimated signal at the entries
+		%                            indicated by
+		%                            sideInfo(i).v_wantedEntries 
+		%          
 		% 
 		
 		
