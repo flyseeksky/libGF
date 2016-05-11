@@ -3,5 +3,5 @@
 *.pdf
 *.log
 *.dat 
-./simulations/MultikernelSimulations_data/*
-./simulations/SemiParametricSimulations_data/*
+simulations/MultikernelSimulations_data/*
+simulations/SemiParametricSimulations_data/*
