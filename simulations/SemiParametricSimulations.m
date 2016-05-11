@@ -11,7 +11,8 @@ classdef SemiParametricSimulations < simFunctionSet
 	
 	methods
 		
-		
+		changes in bandlimited 
+		and  add headers
 		function F = compute_fig_1001(obj,niter)
 			
 			%0. define parameters
