@@ -11,7 +11,7 @@ classdef ReadMovieLensDataset < ReadDataset
 	
 	methods(Static)
 		
-		function [ m_test ] = getTestTables			
+		function [ m_test, v_range ] = getTestTables			
 			% Obtain 5 disjoint sets  with 20.000 ratings  to reproduce the
 			% simulations in [narang2013structured]
 			%
@@ -20,6 +20,10 @@ classdef ReadMovieLensDataset < ReadDataset
 			%               one column per movie. 
 		    %               
 			%               The i-th slab is obtained from ui.data
+			%
+			% v_range       : 2x1 vector contains the min and max rating 
+			%               available in the dataset
+			%
 			
 					
 			ch_folderName = './libGF/datasets/MovieLensDataset/ml-100k/';
@@ -28,7 +32,7 @@ classdef ReadMovieLensDataset < ReadDataset
 			s_UsersNum = 943; 
 			s_MoviesNum = 1682;			
 			m_test=zeros(s_UsersNum,s_MoviesNum,s_SetNum);
-			
+			v_range=zeros(2,1);
 			
 			for s_setInd = 1:s_SetNum
 				
@@ -43,8 +47,10 @@ classdef ReadMovieLensDataset < ReadDataset
 				end
 			
 			end		
-			
-			
+			%m_test=(m_test-1)/4;
+			m_test(m_test==0)=NaN;
+			v_range(1)=min(min(min(m_test)));
+			v_range(2)=max(max(max(m_test)));
 			% NaN and range [0,1]
 			
 			
