@@ -161,10 +161,33 @@ classdef Graph
 % 			G = Graph('m_adjacency',m_adjacency_est);
 % 			
 % 		end
+        
 		function m_adjacency= createAdjacencyFromLaplacian(m_laplacian)
             m_adjacency=eye(size(m_laplacian)).*diag(diag(m_laplacian))-m_laplacian;
 
-        end
+		end
+		
+		function graph=constructGraphFromTableCosineSimilarity(m_T)
+			%Constructs a graph from a table of signals using modified
+			%cosine similarity. Use only the common rated entries of the
+			%vectors when computing the cosine similarity.
+			m_adj=zeros(size(m_T,1));
+			for k=1:size(m_T,1)
+				
+				
+				for l=1:k-1
+					v_xk=m_T(k,:);
+					v_yk=m_T(l,:);
+					v_res=v_xk.*v_yk;
+					v_ind=(~isnan(v_res));
+					m_adj(k,l)=sum(v_res(v_ind))/(norm(v_xk(v_ind))*norm(v_yk(v_ind)));
+				
+				end
+			end
+			%m_adjacency(isnan(m_adjacency)) = 0 ;
+			m_adj=m_adj+m_adj';
+			graph=Graph('m_adjacency',m_adj);
+		end
 		
 	end
 	
