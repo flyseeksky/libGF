@@ -131,8 +131,12 @@ classdef Graph
             % vectors as columns
             C = sparse(1:size(D, 1), C, 1);
             
-        end
+		end
         
+		function v_f_tilde = getFourierTransform( obj , v_f )
+			assert(size(v_f,1) == size(obj.m_adjacency,1));
+			v_f_tilde = obj.getLaplacianEigenvectors'*v_f;
+		end
 				
 	end
 	

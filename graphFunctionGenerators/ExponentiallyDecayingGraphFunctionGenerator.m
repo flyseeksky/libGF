@@ -1,19 +1,21 @@
-classdef ExponentiallyDecayingFunctioinGenerator < GraphFunctionGenerator
-    % Generate exponentially decaying function on graphs
+classdef ExponentiallyDecayingGraphFunctionGenerator < GraphFunctionGenerator
+    % Generate exponentially decaying function on graphs [anis2016proxies]
     % need to specify the graph and bandwidth
     
     properties % Required by superclass Parameter
-		c_parsToPrint    = {};
-		c_stringToPrint  = {};
-		c_patternToPrint = {};
+		c_parsToPrint    = {'ch_name','s_bandwidth'};
+		c_stringToPrint  = {'','B'};
+		c_patternToPrint = {'%s%s signal','%s = %d'};
 	end 
     
     properties
-        s_bandwidth
+		ch_name = 'Exp. decaying';
+        s_bandwidth;
+		s_decayingRate = 4; 
     end
     
     methods
-        function obj = ExponentiallyDecayingFunctioinGenerator(varargin)
+        function obj = ExponentiallyDecayingGraphFunctionGenerator(varargin)
             obj@GraphFunctionGenerator(varargin{:});
         end
         
@@ -22,10 +24,14 @@ classdef ExponentiallyDecayingFunctioinGenerator < GraphFunctionGenerator
             %                coefficient ~ N(1, 0.5^2)
             % Then rescale by h(lambda) according to the following rule
             %      h(lambda) = 1;    if lambda <= lambda_r
-            %      h(lambda) = exp( -4*(lambda-lambda_r) );  if lambda > lambda_r
+            %      h(lambda) = exp( -obj.s_decayingRate*(lambda-lambda_r) );  if lambda > lambda_r
             % Therefore, the signal can be obtained by
             %      x = V * (coefficient * h(r))
             
+			if nargin<2
+				s_numberOfRealizations = 1;
+			end
+			
             if isempty(obj.graph) || isempty(obj.s_bandwidth)
                 error('ExponentiallyDecayingFunctionGenerator: Paramter not set');
             end
@@ -36,7 +42,7 @@ classdef ExponentiallyDecayingFunctioinGenerator < GraphFunctionGenerator
             lambda = diag(D);
             
             lambda_r = lambda(obj.s_bandwidth);
-            h_lambda = exp( -4*(lambda - lambda_r ) );   % h(lambda)
+            h_lambda = exp( -obj.s_decayingRate*(lambda - lambda_r ) );   % h(lambda)
             h_lambda( lambda < lambda_r ) = 1;
             
             M_graphFunction = NaN(size(L,1), s_numberOfRealizations);

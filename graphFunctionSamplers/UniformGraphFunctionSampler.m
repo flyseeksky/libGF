@@ -6,7 +6,7 @@ classdef UniformGraphFunctionSampler < GraphFunctionSampler
 	properties
 		c_parsToPrint   = {'ch_name','s_numberOfSamples','s_SNR'};
 		c_stringToPrint = {'',       'S',                'SNR'};
-		c_patternToPrint= {'%s%s',   '%s = %d',          '%s = %g'};
+		c_patternToPrint= {'%s%s',   '%s = %d',          '%s = %g dB'};
 	end 
 	
 	properties
