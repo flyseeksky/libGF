@@ -3,8 +3,8 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 	
 	properties % Required by superclass Parameter
 		c_parsToPrint    = {'ch_name','s_bandwidth'};
-		c_stringToPrint  = {'',    'BANDWIDTH'};
-		c_patternToPrint = {'%s%s','%s = %d'};
+		c_stringToPrint  = {'',    'B'};
+		c_patternToPrint = {'%s%s signal','%s = %d'};
 	end 
 	
 	properties

@@ -19,14 +19,14 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
     properties(Constant)
         ch_name = 'Learn Graph from signals';
 		DEBUG = true; % set this paramter to true for debug information
-        CVX = false;  % set CVX=true to use cvx for solving this problem
+        CVX = true;  % set CVX=true to use cvx for solving this problem
     end
     
     properties
-        m_observed;          % observed signals on some graph
-        s_maxIter;           % maximum number of iterations
-		s_alpha;             % regularization parameter: alpha*tr(Y'LY)
-        s_beta;              % regularization: beta * norm(Y,'fro')^2
+        m_observed;             % observed signals on some graph
+        s_maxIter = 1000;       % maximum number of iterations
+		s_alpha = 2;            % regularization parameter: alpha*tr(Y'LY)
+        s_beta = 0.2;           % regularization: beta * norm(Y,'fro')^2
     end
     
     
@@ -39,7 +39,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
 		% signals are smooth on this graph
 		% Graph object is returned
         function graph = realization(obj)
-            L = obj.learnLaplacian();              
+            L = obj.learnLaplacian();  
             m_adjacency=Graph.createAdjacencyFromLaplacian(L);
             graph = Graph('m_adjacency',m_adjacency);
 		end
@@ -61,7 +61,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
             A = m_B; b = zeros(N*(N-1)/2,1);
             Aeq = m_A; beq = zeros(N+1,1);
 			
-            history = NaN(obj.s_maxIter, 1);    % record objective value
+            %history = NaN(obj.s_maxIter, 1);    % record objective value
 			for iter = 1 : obj.s_maxIter
                 Y_old = Y;
                 
@@ -87,7 +87,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
 				Y = (eye(size(m_laplacian))+obj.s_alpha*m_laplacian) \ X;
                 
                 % print debug information
-                history(iter) = norm(Y - Y_old, 'fro');
+                history(iter) = norm(Y - Y_old, 'fro')/norm(Y_old,'fro');
                 if obj.DEBUG
 					fprintf('Iterations:%2d \tobjective value: %3.2f\n',...
 						iter, history(iter) );
@@ -99,7 +99,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
 			end
             % if DEBUG = true, plot the history of objective value
 			% set DEBUg = false to suppress this output
-			if obj.DEBUG && ~isempty(history)
+			if obj.DEBUG && length(history) > 1
 				figure(101)
 				plot(history)
 				xlabel('iterations')

@@ -4,7 +4,7 @@ classdef ErdosRenyiGraphGenerator < GraphGenerator
 	properties % required by parent classes
 		c_parsToPrint  = {'ch_name','s_edgeProbability','s_numberOfVertices'};
 		c_stringToPrint  = {'','Edge prob.',''};
-		c_patternToPrint = {'%s%s','%s = %g','%s%d vertices'};
+		c_patternToPrint = {'%s%s random graph','%s = %g','%s%d vertices'};
 	end 
 	
 	properties(Constant)
