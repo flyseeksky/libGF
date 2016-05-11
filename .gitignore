@@ -2,4 +2,6 @@
 *.asv
 *.pdf
 *.log
-*.dat
+*.dat 
+./simulations/MultikernelSimulations_data/*
+./simulations/SemiParametricSimulations_data/*
