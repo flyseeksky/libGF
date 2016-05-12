@@ -157,12 +157,17 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			% output graph is a modified graph using [narang2013structured, eq
 			% (10)]
 			%
-			
-						
-		end
-		
-		
-		
+			W = graph.m_adjacency;
+            for row = 1 : size(W,1)
+                for col = 1 : size(W,1)
+                    if W(row, col) > 0
+                        W(row, col) = W(row,col) * exp( - (v_samples(row) - ...
+                            v_samples(col) ) / s_theta );
+                    end
+                end
+            end
+            graph = Graph('m_adjacency', W);				
+        end
 	end
 
 end
