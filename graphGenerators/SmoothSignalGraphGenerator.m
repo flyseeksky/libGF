@@ -18,14 +18,14 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
     
     properties(Constant)
         ch_name = 'Learn Graph from signals';
-		DEBUG = true; % set this paramter to true for debug information
-        CVX = true;  % set CVX=true to use cvx for solving this problem
+		DEBUG = false; % set this paramter to true for debug information
+        CVX = false;  % set CVX=true to use cvx for solving this problem
     end
     
     properties
         m_observed;             % observed signals on some graph
         s_maxIter = 1000;       % maximum number of iterations
-		s_alpha = 2;            % regularization parameter: alpha*tr(Y'LY)
+		s_alpha = 1;            % regularization parameter: alpha*tr(Y'LY)
         s_beta = 0.2;           % regularization: beta * norm(Y,'fro')^2
     end
     
@@ -59,7 +59,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
             % for quadratic programming
             H = obj.s_beta/2 * (M'*M);
             A = m_B; b = zeros(N*(N-1)/2,1);
-            Aeq = m_A; beq = zeros(N+1,1);
+            Aeq = m_A; beq = zeros(N+1,1); beq(end) = N;
 			
             %history = NaN(obj.s_maxIter, 1);    % record objective value
 			for iter = 1 : obj.s_maxIter
