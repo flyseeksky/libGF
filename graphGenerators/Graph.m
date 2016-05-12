@@ -151,7 +151,22 @@ classdef Graph
 		function graph = nearestNeighborsSubgraph(obj,s_neighborsNum)
 			% delete all but the s_neighborsNum strongest links of each
 			% edge
+            W = obj.m_adjacency;
+            
+            for row = 1:size(W,1)
+                % get the k-largest values and its position
+                [sortedValues, sortedIndices] = sort(W(row,:),'descend');
+                maxValues = sortedValues(1:s_neighborsNum);
+                maxValueIndices = sortedIndices(1:s_neighborsNum);
+                
+                % update W
+                rowIndices = 1 : size(W,1);
+                rowIndices(maxValueIndices) = 0;
+                W(row, logical(rowIndices)) = 0;
+            end
 			
+            W = W .* logical(W');
+            graph = Graph('m_adjacency', W);
 		end
 		
 	end

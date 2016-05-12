@@ -144,17 +144,6 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 	end
 	methods(Static)
 		
-		function graph = bilateralLinkWeightAdjustment( graph , v_entries , v_samples , s_theta )
-			% v_samples(i) is the value of the graph function on vertex 
-			% v_entries(i)
-			%
-			% output graph is a modified graph using [narang2013structured, eq
-			% (10)]
-			%
-			
-						
-		end
-		
 		function h_of_lambda = h_function(lambda)
 			epsilon = 1e-1;
 			h_of_lambda = exp(2./(lambda));
@@ -162,7 +151,25 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			
 		end
 		
-		
+		function graph = bilateralLinkWeightAdjustment( graph , v_entries , v_samples , s_theta )
+			% v_samples(i) is the value of the graph function on vertex 
+			% v_entries(i)
+			%
+			% output graph is a modified graph using [narang2013structured, eq
+			% (10)]
+			%
+			W = graph.m_adjacency;
+            for row = 1 : size(W,1)
+                for col = 1 : size(W,1)
+                    if W(row, col) > 0
+                        W(row, col) = W(row,col) * exp( - (v_samples(row) - ...
+                            v_samples(col) ) / s_theta );
+                    end
+                end
+            end
+            graph = Graph('m_adjacency', W);				
+        end
+
 	end
 
 end
