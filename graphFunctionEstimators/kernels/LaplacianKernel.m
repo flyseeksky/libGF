@@ -32,9 +32,9 @@ classdef LaplacianKernel < Parameter
             
             if isempty(obj.m_laplacian)
                 error('Property m_laplacian cannot be empty');
-            end
-            
-            [V,D] = eig(obj.m_laplacian);
+			end
+
+		    [V,D] = eig(obj.m_laplacian);
             d = diag(D);  d(1) = 0;                  % fix a bug since the first
                                             % eigenvalue of L is always 0
             N = size(obj.m_laplacian,1);

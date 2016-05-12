@@ -2,8 +2,8 @@
 classdef ReadMovieLensDataset < ReadDataset
 	
 	
-	methods
-		
+	properties(Constant)
+		ch_folderName = './libGF/datasets/MovieLensDataset/ml-100k/';
 		
 	end
 	
@@ -24,10 +24,7 @@ classdef ReadMovieLensDataset < ReadDataset
 			% v_range       : 2x1 vector contains the min and max rating 
 			%               available in the dataset
 			%
-			
-					
-			ch_folderName = './libGF/datasets/MovieLensDataset/ml-100k/';
-			
+				
 			s_SetNum = 5;
 			s_UsersNum = 943; 
 			s_MoviesNum = 1682;			
@@ -36,7 +33,7 @@ classdef ReadMovieLensDataset < ReadDataset
 			
 			for s_setInd = 1:s_SetNum
 				
-				ch_file = sprintf('%s%d%s',[ch_folderName 'u'],s_setInd,'_test.txt');
+				ch_file = sprintf('%s%d%s',[ReadMovieLensDataset.ch_folderName 'u'],s_setInd,'_test.txt');
 				
 				D = readtable(ch_file,'Delimiter','\t','ReadVariableNames',false);
 				TestData=table2array(D); % columns contain user id | item id | rating | timestamp.
@@ -53,7 +50,7 @@ classdef ReadMovieLensDataset < ReadDataset
 			v_range(2)=max(max(max(m_test)));
 			% NaN and range [0,1]
 			
-			
+			%save([ReadMovieLensDataset.ch_folderName 'm_test.mat'],'m_test','v_range');
 		end
 		
 	end

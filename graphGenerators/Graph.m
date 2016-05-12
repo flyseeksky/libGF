@@ -20,6 +20,20 @@ classdef Graph
 			m_L = diag(v_degrees) - obj.m_adjacency;
 		end
 		
+		function m_L = getNormalizedLaplacian(obj)						
+			v_degrees = sum(obj.m_adjacency,2);						
+			d_m12 = v_degrees.^(-.5);
+			d_m12(v_degrees == 0 ) = 0;
+			D_m12 = diag(d_m12);
+			m_L = eye(length(v_degrees)) - D_m12*obj.m_adjacency*D_m12;
+		
+			if sum(sum(isnan(m_L)))
+				keyboard
+			end
+			
+		end
+		
+		
 		function m_V = getLaplacianEigenvectors(obj)									
 			% m_V     Matrix whose columns are the eigenvectors of the
 			%         Laplacian sorted in ascending order of eigenvalue
@@ -171,26 +185,42 @@ classdef Graph
 
 		end
 		
-		function graph=constructGraphFromTableCosineSimilarity(m_T)
-			%Constructs a graph from a table of signals using modified
-			%cosine similarity. Use only the common rated entries of the
-			%vectors when computing the cosine similarity.
-			m_adj=zeros(size(m_T,1));
-			for k=1:size(m_T,1)
-				
-				
-				for l=1:k-1
-					v_xk=m_T(k,:);
-					v_yk=m_T(l,:);
-					v_res=v_xk.*v_yk;
-					v_ind=(~isnan(v_res));
-					m_adj(k,l)=sum(v_res(v_ind))/(norm(v_xk(v_ind))*norm(v_yk(v_ind)));
-				
-				end
+		function graph=constructGraphFromTable(m_T,ch_method)
+			% m_T :            M x N matrix with NaN for missing entries
+			%                  and values typically for ratings 
+			% ch_method :      can be
+			%    'cosine'      cosine similarity
+			% 
+			% graph is a graph with M vertices using a similarity measure
+			% specified by ch_method
+			
+			
+			switch ch_method
+				case 'cosine'
+					%Constructs a graph from a table of signals using modified
+					%cosine similarity. Use only the common rated entries of the
+					%vectors when computing the cosine similarity.
+					m_adj=zeros(size(m_T,1));
+					for k=1:size(m_T,1)
+												
+						for l=1:k-1
+							v_xk=m_T(k,:);
+							v_yk=m_T(l,:);
+							v_res=v_xk.*v_yk;
+							v_ind=(~isnan(v_res));
+							if sum(v_ind)
+								m_adj(k,l)=sum(v_res(v_ind))/(norm(v_xk(v_ind))*norm(v_yk(v_ind)));
+							end
+							
+						end
+					end
+					%m_adjacency(isnan(m_adjacency)) = 0 ;
+					m_adj=m_adj+m_adj';
+					graph=Graph('m_adjacency',m_adj);										
+					
+				otherwise
+					error('unrecognized option');
 			end
-			%m_adjacency(isnan(m_adjacency)) = 0 ;
-			m_adj=m_adj+m_adj';
-			graph=Graph('m_adjacency',m_adj);
 		end
 		
 	end
