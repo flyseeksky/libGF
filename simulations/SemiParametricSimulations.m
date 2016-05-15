@@ -789,21 +789,29 @@ classdef SemiParametricSimulations < simFunctionSet
 		%
 		function F = compute_fig_4001(obj,niter)
 			
-			% estimator = 
+			
+if 0			
+			 estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2);
 			
 			
 			% obtain data set
-			t_T = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
+			[t_T,v_range] = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
 			s_userNum = size(t_T,1);
-			s_itemNum = size(t_T,2);
+			%s_itemNum = size(t_T,2);
 			s_foldCrossvalidationNum = size(t_T,3);
 			
 			v_rmse = NaN(1,s_foldCrossvalidationNum);
-			for s_CVInd = 1:s_foldCrossvalidationNum
+			
+%for s_CVInd = 1:s_foldCrossvalidationNum
+s_CVInd = 1;			
+			
 				m_training = ReadDataset.mergeDataMatrices(t_T(:,:,[1:s_CVInd-1 s_CVInd+1:s_foldCrossvalidationNum] ));
 				m_test = t_T(:,:,s_CVInd);
-				graph = Graph.constructFromTable(m_training,'cosine');
-				
+				graph = Graph.constructGraphFromTable(m_training','cosine');
+save('dummy.mat')
+else
+load('dummy.mat')
+end
 				
 				% computation of RMSE
 				for s_userInd = s_userNum:-1:1
@@ -828,9 +836,9 @@ classdef SemiParametricSimulations < simFunctionSet
 					
 				end
 				v_rmse(s_CVInd) = sum( v_squaredError )/sum( s_estimatedEntriesNum );
-			end
+%end
 			
-			rmse = sqrt( mean(v_rmse) )
+			rmse = sqrt( mean(v_rmse) ) / (v_range(2)-v_range(1))
 			
 			F = [];
 		end

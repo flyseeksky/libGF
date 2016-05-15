@@ -213,7 +213,7 @@ classdef MultikernelSimulations < simFunctionSet
 			v_sigma2_LaplacianReg = [1 20 100];
 			for i_sigma2 = length(v_sigma2_LaplacianReg):-1:1				
 				KcolLaplacianReg(i_sigma2,:) = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rLaplacianReg(lambda,v_sigma2_LaplacianReg(i_sigma2)) , columnInd)';
-				leg{i_sigma2} = sprintf('Laplacian reg. (\\sigma^2 = %g)',v_sigma2_LaplacianReg(i_sigma2));
+				leg{i_sigma2} = sprintf('Laplacian reg. (\\sigma^2 = %g )',v_sigma2_LaplacianReg(i_sigma2));
 			end
 			KcolLaplacianReg = diag(1./max(KcolLaplacianReg,[],2))*KcolLaplacianReg;
 			
@@ -224,13 +224,13 @@ classdef MultikernelSimulations < simFunctionSet
 			i_legLen = length(leg);
 			for i_sigma2 = length(v_sigma2_DiffusionKernel):-1:1
 				KcolDiffusionKernel(i_sigma2,:) = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,v_sigma2_DiffusionKernel(i_sigma2)) , columnInd)';
-				leg{i_sigma2+i_legLen} = sprintf('Diffusion Kernel (\\sigma^2 = %g)',v_sigma2_DiffusionKernel(i_sigma2));
+				leg{i_sigma2+i_legLen} = sprintf('Diffusion k. (\\sigma^2 = %g )',v_sigma2_DiffusionKernel(i_sigma2));
 			end		
 			KcolDiffusionKernel = diag(1./max(KcolDiffusionKernel,[],2))*KcolDiffusionKernel;
 			
 			caption = sprintf('%d-th column of the kernel matrix for a circular graph with N = %d vertices.',columnInd,vertexNum);
 			m_Y = [KcolLaplacianReg;KcolDiffusionKernel];
-			F = F_figure('X',1:2:vertexNum,'Y',m_Y(:,1:2:vertexNum),'leg',leg,'styles',{'-','-x','-o','--','--x','--o'},'colorp',3,'xlab','Vertex index (n)','ylab','Function value','caption',caption);
+			F = F_figure('X',1:2:vertexNum,'Y',m_Y(:,1:2:vertexNum),'leg',leg,'styles',{'-','-x','-o','--','--x','--o'},'colorp',3,'xlab','Vertex index (n)','ylab','Function value','caption',caption,'leg_pos_vec',[0.5546    0.5271    0.2333    0.3715]);
 			
 		end
 		
@@ -360,18 +360,19 @@ classdef MultikernelSimulations < simFunctionSet
 			SNR = 20; % dB
 			N = 100;
             S_Vec = 10:20:80;
-            mu = 1e-3;
-            p = 0.2;
+            mu = 1e-2;
+            p = 0.5;
 						
 			% generate graph and signal
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
+			%functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
+			functionGenerator = ExponentiallyDecayingGraphFunctionGenerator('graph',graph,'s_bandwidth',30,'s_decayingRate',.5);
 			m_graphFunction = functionGenerator.realization();
             generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 			
 			% 3. generate Kernel matrix
-			sigmaArray = linspace(0.01, 1.5, 30);
+			sigmaArray = linspace(0.01, 1, 30);
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
 			m_kernel = kG.getKernelMatrix();
@@ -393,7 +394,8 @@ classdef MultikernelSimulations < simFunctionSet
             F = F_figure('X',sigmaArray,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','\sigma','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu));		  
+                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu),...
+				'leg_pos','northwest');		  
 		end			
 		
 		% Simulation to test different kernels and number of

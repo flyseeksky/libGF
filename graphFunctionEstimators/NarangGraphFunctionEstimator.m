@@ -16,7 +16,12 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 		%      'RBM':    regularization-based method
 		%      'LSR':    least-squares reconstruction
 				
-		s_theta = 1; % parameter for Bilateral Link-Weight Adjustment
+		
+		% parameters for Bilateral Link-Weight Adjustment
+		s_theta = 1; 
+		
+		% parameters for the regularization-based method
+		s_regularizationParameter;
 		
 	end
 	
@@ -71,7 +76,7 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			assert( isfield(sideInfo,'v_sampledEntries') );
 			assert( isrow(sideInfo.v_sampledEntries') );
 			assert( isfield(sideInfo,'graph') );
-			s_numberOfVertices = sideInfo.getNumberOfVertices(); % number of vertices
+			s_numberOfVertices = sideInfo.graph.getNumberOfVertices(); % number of vertices
 			if  ~isfield(sideInfo,'v_wantedEntries') 
 				sideInfo.v_wantedEntries = (1:s_numberOfVertices)';
 			end
@@ -84,34 +89,13 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			subgraph = Graph('m_adjacency',m_subgraphAdjacency);			
 			
 			% nearest neighbors graph
-			subgraph = subgraph.nearestNeighborsSubgraph(30);
+		%subgraph = subgraph.nearestNeighborsSubgraph(30);
 			
 			% update weights			
-			subgraph = obj.bilateralLinkWeightAdjustment( subgraph , 1:length(sideInfo.v_sampledEntries) , m_samples , obj.s_theta ); 
+		%subgraph = obj.bilateralLinkWeightAdjustment( subgraph , 1:length(sideInfo.v_sampledEntries) , m_samples , obj.s_theta ); 
 			
-			% estimate subsignal
-			estimate.v_wantedSamples = obj.estimateSubsignal(subgraph, 1:length(sideInfo.v_sampledEntries) , m_samples , 1+length(sideInfo.v_sampledEntries):length(v_graphIndices) );
-			
-			
-			%-------------------------------------------------------------
-			% 
-% 			s_numberOfVertices = size(obj.m_laplacian,1);
-% 			s_numberOfRealizations = size(m_samples,2);
-% 			m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
-% 			
-% 			
-% 			for iRealization = 1:s_numberOfRealizations
-% 				
-% 				if obj.s_bandwidth == -1
-% 					s_bw = obj.computeCutoffFrequency(m_positions(:,iRealization));
-% 					m_eigenvecs = obj.m_laplacianEigenvectors_precomp(:,1:s_bw);
-% 				end
-% 				
-% 				m_PhiB = m_eigenvecs( m_positions(:,iRealization) , : );
-% 				v_alphas = m_PhiB\m_samples(:,iRealization);
-% 				m_estimate(:,iRealization) = m_eigenvecs*v_alphas;
-% 			end
-			
+			% estimate subsignal			
+			estimate.v_wantedSamples = obj.estimateSubsignal(subgraph, (1:length(sideInfo.v_sampledEntries))' , m_samples , (1+length(sideInfo.v_sampledEntries):length(v_graphIndices))' );
 			
 		end
 			
@@ -135,20 +119,37 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 		
 		
 		
-		function subsignal = estimateSubsignal(obj,graph, v_sampledEntries , m_samples , v_wantedEntries )
+		function subsignal = estimateSubsignal(obj,graph, v_sampledEntries , v_samples , v_wantedEntries )
 			
 			switch obj.ch_type
 				case 'RBM'
+					% Regularization-based reconstruction from [narang2013localized]										
+					h_r_inv_handle = @(lambda) NarangGraphFunctionEstimator.h_function(lambda);
+					kG = LaplacianKernel('m_laplacian',graph.getNormalizedLaplacian,'h_r_inv',{h_r_inv_handle});
+
+					estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',obj.s_regularizationParameter,'m_kernel',kG.getKernelMatrix());
+					signal = estimator.estimate(v_samples,v_sampledEntries);
 					
 				case 'LSR'
-					
+					% LS reconstruction from [narang2013localized]
+					estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getNormalizedLaplacian,'s_bandwidth',-1);
+					signal = estimator.estimate(v_samples,v_sampledEntries);
+				otherwise
+					error('unrecognized option ');
 			end
-			
+			subsignal = signal(v_wantedEntries);
 		end
 		
 		
 	end
 	methods(Static)
+		
+		function h_of_lambda = h_function(lambda)
+			epsilon = 1e-1;
+			h_of_lambda = exp(2./(lambda));
+			h_of_lambda(lambda < epsilon) = epsilon;
+			
+		end
 		
 		function graph = bilateralLinkWeightAdjustment( graph , v_entries , v_samples , s_theta )
 			% v_samples(i) is the value of the graph function on vertex 
@@ -168,6 +169,7 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
             end
             graph = Graph('m_adjacency', W);				
         end
+
 	end
 
 end
