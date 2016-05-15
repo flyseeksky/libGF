@@ -301,6 +301,54 @@ classdef MultikernelSimulations < simFunctionSet
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
         % 1) Figures for tuning kernel parameters==========================
+        
+        % Figure: NMSE vs sigma
+        %    Instead of drawing one curve per sample size, draw one curve
+        %    per bandwidth (of signal).
+        function F = compute_fig_3100(obj,niter)
+			
+			
+			SNR = 20; % dB
+			N = 100;
+            sampleSize = 40;
+            mu = 1e-4;
+            p = 0.25;
+            bandwidthVec = 20:10:60;
+						
+			% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            % generate signal on this graph
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
+            generator = functionGenerator.replicate('s_bandwidth', ...
+                num2cell(bandwidthVec), [], {} );
+			
+			% generate Kernel matrix
+			sigmaArray = sqrt(linspace(0.01, 1.5, 30));
+            %sigma = 0.8;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
+                's_numberOfSamples', sampleSize);
+			
+			% define function estimator
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+            estimator = estimator.replicate([],{}, ...
+                'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
+			
+			% Simulation
+            mse = Simulate(generator, sampler, estimator, niter);
+            
+            % Representation
+            F = F_figure('X',sigmaArray.^2,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler, estimator),...
+                'xlab','\sigma^2','ylab','Normalized MSE',...
+                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu));		  
+		end
 				
 		% Figure: NMSE vs sigma (diffusion kernel parameter)
 		% This figure will show the importance of choosing the right
