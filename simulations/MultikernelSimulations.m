@@ -347,7 +347,7 @@ classdef MultikernelSimulations < simFunctionSet
             F = F_figure('X',sigmaArray.^2,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','\sigma^2','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d', N, p, mu));		  
+                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, S = %d', N, p, mu, sampleSize));		  
 		end
 				
 		% Figure: NMSE vs sigma (diffusion kernel parameter)
@@ -588,6 +588,14 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 
 		
+		% print version of 3100
+		function F = compute_fig_3105(obj, niter)
+			F = obj.load_F_structure(3100);
+			F.styles = {'-','--','-^','--^','-*'};
+			F.xlab = 'sigma^2';
+			F.caption = F.tit;
+			F.tit = '';
+		end
 		
 		% 2) Figures for tuning the regularization parameter ==============
 		

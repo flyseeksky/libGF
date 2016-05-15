@@ -1,5 +1,9 @@
 classdef VariationMinimizationGraphFunctionEstimator< GraphFunctionEstimator
     % This was written by Vassilis
+	%
+	% Signal Recovery on Graphs: Variation Minimization
+    % Siheng Chen, Aliaksei Sandryhaila, Jos ́e M. F. Moura, Jelena Kovaˇcevi ́c
+	%
     properties(Constant)
     end
     
