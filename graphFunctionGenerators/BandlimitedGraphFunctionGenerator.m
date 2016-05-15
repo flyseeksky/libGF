@@ -14,7 +14,7 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 		b_sortedSpectrum = 1;  % if 1, the entries of the Fourier transform 
 		% are generated and then sorted
         
-        b_sameFunction = 1; % generate the same function if set to 1
+        b_generateSameFunction = 0; % generate the same function if set to 1
 	
 		
 	end
@@ -42,7 +42,7 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 				s_numberOfRealizations = 1;
             end
 			
-            if obj.b_sameFunction
+            if obj.b_generateSameFunction
                 rng(1);
             end
 			

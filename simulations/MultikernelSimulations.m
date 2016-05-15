@@ -313,7 +313,7 @@ classdef MultikernelSimulations < simFunctionSet
             sampleSize = 40;
             mu = 1e-4;
             p = 0.25;
-            bandwidthVec = 20:10:60;
+            bandwidthVec = [5 10 20 30 40];
 						
 			% generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
@@ -321,6 +321,7 @@ classdef MultikernelSimulations < simFunctionSet
             
             % generate signal on this graph
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
+            functionGenerator.b_generateSameFunction = 1;
             generator = functionGenerator.replicate('s_bandwidth', ...
                 num2cell(bandwidthVec), [], {} );
 			
