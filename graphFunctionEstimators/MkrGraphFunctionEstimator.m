@@ -124,7 +124,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					v_theta = [];
 					if obj.b_finishSingleKernel
 						% select kernel with more weight
-						[~,main_kernel_ind] = max(sum(m_alpha.^2,1))
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
 						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
 						if isempty(obj.s_finishRegularizationParameter)
 							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
