@@ -11,7 +11,6 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
 		ch_name = 'Kernel RR';
         m_kernel   %  N x N kernel matrix
 		           %       N: number of vertices
-        s_regularizationParameter
 				   
     end
         
@@ -51,8 +50,16 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
 			assert(size(v_samples,2)==1,'not implemented');
 			assert(size(obj.m_kernel,3)==1);
 			
-			% Kernel preparation 			
-			m_alpha = (obj.m_kernel(v_positions, v_positions) + size(v_samples,1)*obj.s_regularizationParameter*eye(size(v_samples,1)))\v_samples;
+			% Kernel preparation 	
+			if length(obj.s_regularizationParameter)>1
+				% choose s_regularizationParameter via cross validation
+				s_mu = obj.crossValidation(obj,v_samples,v_positions,obj.s_regularizationParameter);
+			elseif length(obj.s_regularizationParameter) == 1
+				s_mu = obj.s_regularizationParameter;
+			else
+				error('empty obj.s_regularizationParameter');
+			end
+			m_alpha = (obj.m_kernel(v_positions, v_positions) + size(v_samples,1)*s_mu*eye(size(v_samples,1)))\v_samples;
 			v_estimate = obj.m_kernel(:,v_positions)*m_alpha;
 			
 			

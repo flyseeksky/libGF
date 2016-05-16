@@ -126,9 +126,12 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 						% select kernel with more weight
 						[~,main_kernel_ind] = max(sum(m_alpha.^2,1))
 						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
-						if isempty(obj.s_finishRegularizationParameter)
-							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
-						end
+% 						if isempty(obj.s_finishRegularizationParameter)
+% 							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
+% 						end
+						
+						% modify to do crossvalidation + ...
+						
 						m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_finishRegularizationParameter*eye(size(m_samples,1)))\m_samples;
 						v_estimate = m_main_kernel(:,m_positions)*m_alpha;
 					end
