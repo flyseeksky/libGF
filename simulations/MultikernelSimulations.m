@@ -300,6 +300,18 @@ classdef MultikernelSimulations < simFunctionSet
 		% %%  3. simulations with MKL on synthetic data
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
+        % Index
+        %       sigma w.r.t bandwidth              Figure 3100
+        %       sigma w.r.t sample size            Figure 3101
+        %       performance comparison of
+        %       single kernel and multikernel      Figure 3102
+        %       IIA with bandlimited kernels       Figure 3103
+        %       RKHS with bandlimited kernels      Figure 3104
+        %       Sparsity of alpha w.r.t mu         Figure 3201
+        %       NMSE vs mu(regularization)         Figure 3202
+        %       Test parameter for Cortes          Figure 3203
+        
+        
         % 1) Figures for tuning kernel parameters==========================
         
         % Figure: NMSE vs sigma
@@ -396,7 +408,7 @@ classdef MultikernelSimulations < simFunctionSet
             [N,p,SNR,~,bandwidth] = MultikernelSimulations.simulationSetting();                 
                                              % from Figure 3100 the best kernel
                                              % for bandwidht = 30 is sigma = 0.8
-            mu_Vec = [1e-3 1e-3 1e-3 1e-3 1e-3];
+            mu_Vec = 1e-2*ones(5,1);
             S_Vec = 10:10:80;
             
 						
@@ -417,7 +429,7 @@ classdef MultikernelSimulations < simFunctionSet
 			
 
 			% define function estimator
-            sigmaArray = [0.2 0.80 1 0 0];
+            sigmaArray = sqrt([0.2 0.80 1 0 0]);
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(1)));			
             c_kernel{1} = kG.getKernelMatrix();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(2)));			
@@ -425,11 +437,11 @@ classdef MultikernelSimulations < simFunctionSet
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(3)));			
             c_kernel{3} = kG.getKernelMatrix();
             
-            sigmaArray2 = [0.4 0.8 1.2];
+            sigmaArray2 = sqrt([0.4 0.8 1.2]);
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray2));			
             c_kernel{4} = kG.getKernelMatrix();
             
-            sigmaArray20 = linspace(0.1,1.5,20); %[0.1 0.3 0.5 0.8 0.95 1.1 1.3 1.5];
+            sigmaArray20 = sqrt(linspace(0.1,1.5,20)); %[0.1 0.3 0.5 0.8 0.95 1.1 1.3 1.5];
 			kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray20));			
             c_kernel{5} = kG.getKernelMatrix();
             
@@ -451,7 +463,7 @@ classdef MultikernelSimulations < simFunctionSet
             F = F_figure('X',S_Vec,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','sample size','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f', N, p));	  
+                'tit', sprintf('N=%d, p=%2.2f, B=%d', N, p, bandwidth));	  
 		end
 		
 		% Simulation to see how IIA works with bandlimited kernels
@@ -601,23 +613,22 @@ classdef MultikernelSimulations < simFunctionSet
 		% more sparse, so more and more ||alpha_i|| will go to zero
 		function F = compute_fig_3201(obj, niter)
 			
-            SNR = 20; % dB
-			N = 100;
+            [N,p,SNR,sampleSize,bandwidth] = MultikernelSimulations.simulationSetting();
             u_Vec = logspace(-6,0,50);
 						
 			% 1. generate graph
-			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.1,'s_numberOfVertices',N);
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
             % 2. generate graph function
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',30);
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
 			m_graphFunction = functionGenerator.realization();
             generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 		
 			% 3. define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',50);
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',sampleSize);
 			
 			% 4. generate Kernel matrix
-			sigmaArray = linspace(0.01, 1.5, 20);
+			sigmaArray = sqrt(linspace(0.01, 1.5, 20));
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
@@ -637,15 +648,16 @@ classdef MultikernelSimulations < simFunctionSet
 				m_alpha(:,:,i) = alpha;
 			end
 			
-			anorm = sum( m_alpha.^2, 1 );
-			anorm = permute(anorm, [3 2 1]);
+			alphanorm = sum( m_alpha.^2, 1 );
+			alphanorm = permute(alphanorm, [3 2 1]);
             
             for i = 1:length(sigmaArray)
                 legendStr{i} = sprintf('\\sigma=%2.2f',sigmaArray(i));
             end
 			
-			F = F_figure('X', u_Vec, 'Y', anorm', 'logx', true, ...
-				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','West');
+			F = F_figure('X', u_Vec, 'Y', alphanorm', 'logx', true, ...
+				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','West',...
+                'tit',sprintf('N=%d,p=%2.2f,B=%d,S=%d',N,p,bandwidth,sampleSize));
 
 		end
 						
@@ -686,7 +698,9 @@ classdef MultikernelSimulations < simFunctionSet
             mse = Simulate(generator, sampler, estimator, niter);
 			
 			F = F_figure('X', u_Vec, 'Y', mse, 'logx', true, ...
-				'xlab', '\mu', 'ylab', 'MSE');
+				'xlab', '\mu', 'ylab', 'MSE', ...
+                'tit', sprintf('N=%d, p=%2.2f, B=%d,S=%d, numOfKernels=%d', ...
+                N, p, bandwidth,sampleSize, length(sigmaArray)));
 		end
         
 		% Simulation to test parameters for Cortes' MKL

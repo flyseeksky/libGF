@@ -12,7 +12,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         m_kernel   %  N x N x P tensor, where 
 		           %       N: number of vertices
 				   %       P: number of kernels
-        s_regularizationParameter
+        %s_regularizationParameter
         s_sigma    % only valid for single kernel
 		ch_type = 'RKHS superposition'; 
 		           % 'RKHS superposition': ADMM algorithm following
@@ -50,7 +50,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             % this task
             nKernels = size(obj.m_kernel,3);
             if nKernels == 1
-                str = sprintf('1 kernel, \\sigma = %3.2f', obj.s_sigma);
+                str = sprintf('1 kernel, \\sigma^2 = %3.2f', obj.s_sigma^2);
             else
                 str = sprintf('%d kernels', nKernels);
             end
