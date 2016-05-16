@@ -417,10 +417,10 @@ classdef MultikernelSimulations < simFunctionSet
 			graph = graphGenerator.realization();
             
             % generate graph function
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
-			m_graphFunction = functionGenerator.realization();
-            generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
-			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
+% 			m_graphFunction = functionGenerator.realization();
+%             generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
+ 			
             L = graph.getLaplacian();
             
 			% define graph function sampler
@@ -428,7 +428,7 @@ classdef MultikernelSimulations < simFunctionSet
             sampler = sampler.replicate([],{}, 's_numberOfSamples', num2cell(S_Vec)); 
 			
 
-			% define function estimator
+			% kernels for single kernel estimators
             sigmaArray = sqrt([0.2 0.80 1 0 0]);
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(1)));			
             c_kernel{1} = kG.getKernelMatrix();
@@ -437,6 +437,7 @@ classdef MultikernelSimulations < simFunctionSet
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray(3)));			
             c_kernel{3} = kG.getKernelMatrix();
             
+			% kernels for multi-kernel estimators
             sigmaArray2 = sqrt([0.4 0.8 1.2]);
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray2));			
             c_kernel{4} = kG.getKernelMatrix();
@@ -448,22 +449,21 @@ classdef MultikernelSimulations < simFunctionSet
             %c_kernel{4} = kG.getDiffusionKernel(sigmaArray20);
             
             for i = 1 : length(sigmaArray)
-                mk_estimator(i) = MkrGraphFunctionEstimator('s_regularizationParameter',mu_Vec(i),...
+                estimator(i,1) = MkrGraphFunctionEstimator('s_regularizationParameter',mu_Vec(i),...
                     's_sigma',sigmaArray(i), 'm_kernel', c_kernel{i}, ...
                     'c_replicatedVerticallyAlong', {'legendString'});
             end
             
-            %estimator = [bl_estimator; mk_estimator(:)];
-            estimator = mk_estimator(:);
-		
+            
 			% Simulation
             mse = Simulate(generator, sampler, estimator, niter);
-            
+            tit = Parameter.getTitle(graphGenerator,generator,sampler, estimator);
+			
             % Representation
             F = F_figure('X',S_Vec,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
                 'xlab','sample size','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f, B=%d', N, p, bandwidth));	  
+                'tit', tit);	  
 		end
 		
 		% Simulation to see how IIA works with bandlimited kernels
