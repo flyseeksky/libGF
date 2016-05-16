@@ -6,13 +6,18 @@ classdef UniformGraphFunctionSampler < GraphFunctionSampler
 	properties
 		c_parsToPrint   = {'ch_name','s_numberOfSamples','s_SNR'};
 		c_stringToPrint = {'',       'S',                'SNR'};
-		c_patternToPrint= {'%s%s',   '%s = %d',          '%s = %g'};
+		c_patternToPrint= {'%s%s',   '%s = %d',          '%s = %g dB'};
 	end 
 	
 	properties
-		ch_name = 'UNIFORM SAMPLER';
+		ch_name = 'Uniform sampler';
 		s_numberOfSamples
 		s_SNR = Inf;  % signal to noise ratio in dB (Inf <-> no noise)
+		% Gaussian noise of variance sigma2 is added to
+		% guarantee that
+		%                   || graphFunction ||^2 / length(graphFunction)
+		% s_SNR = 10*log10(-----------------------------------------------)
+		%                                  sigma2
 	end
 		
 	methods
@@ -56,12 +61,15 @@ classdef UniformGraphFunctionSampler < GraphFunctionSampler
 			for realizationCounter= 1:s_numberOfRealizations
 				m_positions(:,realizationCounter) = randperm(s_numberOfVertices,obj.s_numberOfSamples);
 				m_samples(:,realizationCounter) = m_graphFunction( m_positions(:,realizationCounter) , realizationCounter );
-			end
-			
-			if obj.s_SNR < Inf
-				snr = 10^(obj.s_SNR/10);  % natural units
-				noisePower = 1/(s_numberOfVertices*snr);
-				m_samples = m_samples + sqrt(noisePower)*randn(obj.s_numberOfSamples,s_numberOfRealizations);
+				
+				
+				if obj.s_SNR < Inf
+					snr = 10^(obj.s_SNR/10);  % natural units
+					noisePower = norm(  m_graphFunction(:,realizationCounter) )^2/(s_numberOfVertices*snr);
+					m_samples(:,realizationCounter) = m_samples(:,realizationCounter)...
+						+ sqrt(noisePower)*randn(obj.s_numberOfSamples,1);
+					
+				end
 				
 			end
 			

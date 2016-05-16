@@ -10,8 +10,9 @@ classdef SemiParametricSimulations < simFunctionSet
 	end
 	
 	methods
-		
-		
+		%% Real data simulations 
+		%  Data used: Swiss temperature
+		% Goal: methods comparison NMSE
 		function F = compute_fig_1001(obj,niter)
 			
 			%0. define parameters
@@ -53,11 +54,11 @@ classdef SemiParametricSimulations < simFunctionSet
 			%functionGenerator= SemiParametricGraphFunctionGenerator('graph',graph,'graphFunctionGenerator',functionGeneratorBL,'m_parametricBasis',m_basis);
 			%signal
 			v_realSignal=Hn(:,3);
-			functionGenerator=RealDataGraphFunctionGenerator('graph',graph,'v_realSignal',v_realSignal);
+			functionGenerator=RealDataGraphFunctionGenerator('graph',graph,'v_realSignal',v_realSignal,'s_normalize',1);
 			% define bandlimited function estimator
-			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:s_bandwidth1));
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:(s_bandwidth2)));
+			%m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
+			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
+			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
 			
 			% define Kernel function
 			diffusionGraphKernel = DiffusionGraphKernel('m_laplacian',graph.getLaplacian,'s_sigma',s_sigma);
@@ -113,11 +114,11 @@ classdef SemiParametricSimulations < simFunctionSet
 			F.leg_pos = 'north';      % it can be 'northwest',
 			%F.leg_pos_vec = [0.547 0.673 0.182 0.114];
 		end
-		
+		%% Synthetic data simulations 
+		%  Data used: piece wise constant signals
+		%  Goal: methods comparison NMSE
 		function F = compute_fig_1003(obj,niter)
-			
-			%Assilomar Synthetic simmulation
-			
+						
 			%0. define parameters
 			s_sigma=0.7;
 			s_numberOfClusters=4;
@@ -145,8 +146,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
 			
 			% define bandlimited function estimator
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',functionGeneratorBL.basis);
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:(s_bandwidth2)));
+			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
+			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
 			% define Kernel function
 			diffusionGraphKernel = DiffusionGraphKernel('m_laplacian',graph.getLaplacian,'s_sigma',s_sigma);
 			%define non-parametric estimator
@@ -197,6 +198,9 @@ classdef SemiParametricSimulations < simFunctionSet
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
+		%% Real data simulations 
+		%  Data used: Swiss temperature
+		%  Goal: epsilon tuning
 		function F = compute_fig_1005(obj,niter)
 			%choose epsilon
 			%0. define parameters
@@ -276,6 +280,10 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			F = F_figure('X',v_epsilonSet,'Y',m_meanSquaredError,'xlab','epsilon parameter','ylab','NMSE','leg',cellstr(num2str(v_sampleSetSize(:))),'logx',1);
 		end
+		
+		%% Synthetic data simulations 
+		%  Data used: piece wise constant signals
+		% Goal: epsilon tuning
 		function F = compute_fig_1007(obj,niter)
 			%choose epsilon
 			%0. define parameters
@@ -339,7 +347,10 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			F = F_figure('X',v_epsilonSet,'Y',m_meanSquaredError,'xlab','epsilon parameter','ylab','NMSE','leg',cellstr(num2str(v_sampleSetSize(:))),'logx',1);
 		end
-		
+		%% Real data simulations 
+		%  Data used: Swiss temperature
+		%  Goal: Plot the gap for the epsilon insensitive function
+		%  Data taken from CVX output just ploted here
 		function F = compute_fig_1009(obj,niter)
 			gap=[
 				3.20E+04
@@ -354,14 +365,18 @@ classdef SemiParametricSimulations < simFunctionSet
 				4.40E-10
 				];
 			F = F_figure('X',(1:size(gap,1)),'Y',gap','xlab','number of iterations','ylab','dual-primal gap','leg','Semi-parametric (\epsilon-IL)','logy',1);
-		end
-		function F = compute_fig_1010(obj,niter)
-			F = obj.load_F_structure(1009);
 			F.pos=[680 729 509 249];
-			
-			%F.leg_pos = 'northeast';      % it can be 'northwest',
 		end
-		function F=compute_fig_1011(obj,niter)
+		
+		
+		
+		
+		%% Real data simulations
+		%  Data used: Movielens Data
+		%  Goal: compare the NMSE error for the known etries..
+		%  IS NOT CORRECT VERSION DOES NOT FIND THE RIGHT NMSE
+		% IMPLEMENT AGAIN HIDE ENTRIES
+		function F=compute_fig_2001(obj,niter)
 			%Movielens Simmulation
 			%NMSE
 			%0. define parameters
@@ -394,8 +409,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			m_basis=full(graph.getClusters(s_numberOfClusters,s_type));
 			% define bandlimited function estimator
 			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:s_bandwidth1));
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:(s_bandwidth2)));
+			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
+			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
 			
 			% define Kernel function
 			%%Laplacian gives disconnected components must fix to proceeed maybe have
@@ -463,8 +478,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			
 		end
-		function F = compute_fig_1012(obj,niter)
-			F = obj.load_F_structure(1011);
+		function F = compute_fig_2002(obj,niter)
+			F = obj.load_F_structure(2001);
 			F.ylimit=[0 10];
 			F.xlimit=[10 100];
 			F.styles = {'-','--','-o','-x','--^'};
@@ -473,7 +488,11 @@ classdef SemiParametricSimulations < simFunctionSet
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
-		function F=compute_fig_1013(obj,niter)
+		%% Real data simulations 
+		%  Data used: Jensen joke Data
+		%  Goal: compare the NMSE error for the known etries..
+		%  WRONG VERSION DELETE GO TO 3003
+		function F=compute_fig_3001(obj,niter)
 			%Jensen Simmulation
 			%NMSE
 			%0. define parameters
@@ -509,8 +528,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			m_basis=full(graph.getClusters(s_numberOfClusters,s_type));
 			% define bandlimited function estimator
 			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:s_bandwidth1));
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:(s_bandwidth2)));
+			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
+			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
 			
 			% define Kernel function
 			%%Laplacian gives disconnected components must fix to proceeed maybe have
@@ -578,8 +597,9 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			
 		end
-		function F = compute_fig_1014(obj,niter)
-			F = obj.load_F_structure(1013);
+		
+		function F = compute_fig_3002(obj,niter)
+			F = obj.load_F_structure(3001);
 			F.ylimit=[0 10];
 			F.xlimit=[10 100];
 			F.tit=sprintf('#users=%g',500);
@@ -589,7 +609,10 @@ classdef SemiParametricSimulations < simFunctionSet
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
-		function F=compute_fig_1015(obj,niter)
+		%% Real data simulations 
+		%  Data used: Jensen joke Data
+		%  Goal: compare the NMSE error excluding 2 jokes for each user
+		function F=compute_fig_3003(obj,niter)
 			%Jensen Simmulation
 			%NMSE
 			%excluding 2 jokes for each user
@@ -629,8 +652,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			m_basis=full(graph.getClusters(s_numberOfClusters,s_type));
 			% define bandlimited function estimator
 			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:s_bandwidth1));
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacianEigenvectors',m_laplacianEigenvectors(:,1:(s_bandwidth2)));
+			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
+			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
 			
 			% define Kernel function
 			%%Laplacian gives disconnected components must fix to proceeed maybe have
@@ -714,14 +737,18 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			
 		end
-		function F = compute_fig_1016(obj,niter)
-			F = obj.load_F_structure(1015);
+		function F = compute_fig_3004(obj,niter)
+			F = obj.load_F_structure(3003);
 			F.ylimit=[0 10];
 			F.pos=[680 729 509 249];
 			
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
+		%% Real data simulations 
+		%  Data used: Temperature Dataset
+		%  Goal: Convergence of objective function for the
+		%  GraphLearningAlgorithm
 		function F = compute_fig_1017(obj,niter)
 			%convergence plot for estimate laplacian
 			s_beta=0.002;
@@ -753,6 +780,69 @@ classdef SemiParametricSimulations < simFunctionSet
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
+		
+		
+	    %% Simulations from Narang et al, LOCALIZED ITERATIVE METHODS FOR 
+		% INTERPOLATION IN GRAPH STRUCTURED DATA, 2013
+		%
+		% We will code this here and then make a simulator
+		%
+		function F = compute_fig_4001(obj,niter)
+			
+			
+if 0			
+			 estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2);
+			
+			
+			% obtain data set
+			[t_T,v_range] = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
+			s_userNum = size(t_T,1);
+			%s_itemNum = size(t_T,2);
+			s_foldCrossvalidationNum = size(t_T,3);
+			
+			v_rmse = NaN(1,s_foldCrossvalidationNum);
+			
+%for s_CVInd = 1:s_foldCrossvalidationNum
+s_CVInd = 1;			
+			
+				m_training = ReadDataset.mergeDataMatrices(t_T(:,:,[1:s_CVInd-1 s_CVInd+1:s_foldCrossvalidationNum] ));
+				m_test = t_T(:,:,s_CVInd);
+				graph = Graph.constructGraphFromTable(m_training','cosine');
+save('dummy.mat')
+else
+load('dummy.mat')
+end
+				
+				% computation of RMSE
+				for s_userInd = s_userNum:-1:1
+					
+					v_training = m_training(s_userInd,:)';					
+					v_trainingEntries = find(~isnan(v_training));
+					v_trainingSamples = v_training(v_trainingEntries);
+					
+					v_test = m_test(s_userInd,:)';					
+					v_testEntries = find(~isnan(v_test));
+					v_testSamples = v_training(v_testEntries);
+					
+					% estimation
+					sideInfo.v_sampledEntries = v_trainingEntries;
+					sideInfo.v_wantedEntries = v_testEntries;
+					sideInfo.graph = graph;
+					estimate = estimator.estimate(v_trainingSamples,sideInfo);
+					
+					% error computation
+					v_squaredError(s_userInd) = norm( v_testSamples - estimate.v_wantedSamples )^2;
+					s_estimatedEntriesNum(s_userInd) = length( v_testEntries );
+					
+				end
+				v_rmse(s_CVInd) = sum( v_squaredError )/sum( s_estimatedEntriesNum );
+%end
+			
+			rmse = sqrt( mean(v_rmse) ) / (v_range(2)-v_range(1))
+			
+			F = [];
+		end
+		
 	end
 	
 	
@@ -799,7 +889,7 @@ classdef SemiParametricSimulations < simFunctionSet
 		
 		
 		%estimates the normalized mean squared error
-		function res=estimateNormalizesdMeanSquaredError(m_est,m_observed)
+		function res = estimateNormalizedMeanSquaredError(m_est,m_observed)
 			res=0;
 			for i=1:size(m_est,2)
 				res=res+norm(m_est(:,i)-m_observed(:,i))^2/norm(m_observed(:,i))^2;
@@ -807,13 +897,16 @@ classdef SemiParametricSimulations < simFunctionSet
 			res=(1/size(m_est,2))*res;
 		end
 		%estimates the root mean squared error over the known values
-		function res=estimateMeanSquaredError(m_est,m_observed)
+		function res = estimateMeanSquaredError(m_est,m_observed)
 			res=0;
 			for i=1:size(m_est,2)
 				res=res+norm(m_est(:,i)-m_observed(:,i))^2;
 			end
 			res=(1/size(m_est,2))*res;
 		end
+		
+		
+		
 		
 	end
 	

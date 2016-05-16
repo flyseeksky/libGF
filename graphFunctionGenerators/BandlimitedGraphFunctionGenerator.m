@@ -3,13 +3,20 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 	
 	properties % Required by superclass Parameter
 		c_parsToPrint    = {'ch_name','s_bandwidth'};
-		c_stringToPrint  = {'',    'BANDWIDTH'};
-		c_patternToPrint = {'%s%s','%s = %d'};
+		c_stringToPrint  = {'',    'B'};
+		c_patternToPrint = {'%s%s signal','%s = %d'};
 	end 
 	
 	properties
 		ch_name = 'Bandlimited';
-		s_bandwidth    % integer		
+		s_bandwidth    % integer
+		
+		b_sortedSpectrum = 1;  % if 1, the entries of the Fourier transform 
+		% are generated and then sorted
+        
+        b_generateSameFunction = 0; % generate the same function if set to 1
+	
+		
 	end
 	
 	methods
@@ -33,18 +40,27 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 			
 			if nargin < 2
 				s_numberOfRealizations = 1;
-			end
+            end
 			
+            if obj.b_generateSameFunction
+                rng(1);
+            end
 			
 			m_B = obj.basis;
-			M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
-              m_B*sort(rand(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
-%             N = obj.graph.getNumberOfVertices();
-%             atilde = (1:N)';
-%             alpha = exp( - atilde / 50 );
-%             V = obj.graph.getLaplacianEigenvectors();
-%             M_graphFunction = 10*V*alpha * ones(s_numberOfRealizations,1);
-			
+			if obj.b_sortedSpectrum
+				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+					m_B*sort(randn(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
+			else
+				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+					m_B*randn(obj.s_bandwidth,s_numberOfRealizations);
+			end
+				
+				%             N = obj.graph.getNumberOfVertices();
+				%             atilde = (1:N)';
+				%             alpha = exp( - atilde / 50 );
+				%             V = obj.graph.getLaplacianEigenvectors();
+				%             M_graphFunction = 10*V*alpha * ones(s_numberOfRealizations,1);
+				
 			
 		end
 		

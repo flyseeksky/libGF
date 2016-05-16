@@ -9,6 +9,7 @@ c_       cell array
 ch_      string of characters
 str_     struct array
 h_       function handle
+b_       boolean 
 
 
 Conventions:

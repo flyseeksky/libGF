@@ -12,39 +12,32 @@ classdef Parameter < matlab.mixin.Heterogeneous
 		% the n-th property of an object of class Parameter will be printed
 		% as   my_sprintf( obj.c_patternToPrint{n} , obj.c_stringToPrint{n} , getfield(obj,obj.c_parsToPrint{n}) );		
 		c_parsToPrint    % cell array of strings containing the name of the parameters to print
+		                 % For example c_parsToPrint =
+		                 % {'par1','par2','par3'}
+						 % To customize the way of printing the value of
+						 % the parameter, just create a method of the form
+						 %    function  str = par1_print(obj)
+						 % that returns the desired string.
+						 %
 		c_stringToPrint  % cell array of strings containing the string for printing each parameter (titles, axes and legends)
 		c_patternToPrint % cell array of strings containing the string pattern for sprintf in titles (e.g. {'%s = %d'})
 	end 
 	
 	properties
 		c_replicatedVerticallyAlong = {};   % property names in this list 
-		                                    % are used to make legends 		
-		                                    % In an array of objects of
-		                                    % class Parameter, only the
-		                                    % values of this property for
-		                                    % the objects in the first
-		                                    % column are considered. If
-		                                    % this property is empty for
-		                                    % the entry (n,1), then the one
-		                                    % corresponding to the entry
-		                                    % (m,1) is used, where m is the
-		                                    % largest index less than n
-		                                    % such that the element (m,1)
-		                                    % has a non-empty
-		                                    % c_replicatedVerticallyAlong
-		                                    % field.
-											%
-											% If all legend entries have to
-											% have the same structure, just
-											% set this field for the (1,1)
-											% element. 
+		% are used to make legends In an array of objects of class 
+		% Parameter, only the values of this property for the objects in the first
+		% column are considered. If this property is empty for the entry
+		% (n,1), then the one corresponding to the entry (m,1) is used,
+		% where m is the largest index less than n such that the element
+		% (m,1) has a non-empty c_replicatedVerticallyAlong field.
+		%
+		% If all legend entries have to have the same structure, just set
+		% this field for the (1,1) element.
 		
 		c_replicatedHorizontallyAlong = {}; % property name in this list is 
-		                                    % used to make the label of the
-		                                    % x-axis. For arrays of objects
-		                                    % of class Parameter, the only
-		                                    % considered is the (1,1)
-		                                    % entry. 
+		% used to make the label of the x-axis. For arrays of objects of
+		% class Parameter, the only considered is the (1,1) entry.
 	end
 	
 	properties(Constant)
@@ -65,8 +58,13 @@ classdef Parameter < matlab.mixin.Heterogeneous
 		
 		function str = getParameterByNumber( obj1, par_number )
 			obj1 = obj1(1,1);
-			assert(numel(obj1)==1);			
-			str = my_sprintf( obj1.c_patternToPrint{par_number} , obj1.c_stringToPrint{par_number} , my_getfield(obj1,obj1.c_parsToPrint{par_number}) );			
+			assert(numel(obj1)==1);
+			parameterName = obj1.c_parsToPrint{par_number};
+			if ismethod(obj1,[parameterName '_print'])
+				str = eval(['obj1.' parameterName '_print']);
+			else			
+				str = my_sprintf( obj1.c_patternToPrint{par_number} , obj1.c_stringToPrint{par_number} , my_getfield(obj1,obj1.c_parsToPrint{par_number}) );
+			end
 		end
 		
 		function str = getParameterByName( obj1, name )
@@ -297,7 +295,7 @@ classdef Parameter < matlab.mixin.Heterogeneous
 			end
 			
 			list = Parameter.getTitleList(varargin{:});
-			tit = ParameterArray.strListToText(list,chars_per_line);
+			tit = Parameter.strListToText(list,chars_per_line);
 
 		end				
 		

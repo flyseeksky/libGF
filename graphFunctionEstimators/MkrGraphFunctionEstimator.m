@@ -2,9 +2,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 'legendString',};
-		c_stringToPrint  = {'', ''};
-		c_patternToPrint = {'%s%s', '%s%s'};
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','b_finishSingleKernel'};
+		c_stringToPrint  = {'', '','',''};
+		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s%s'};
     end
     
     properties
@@ -12,8 +12,30 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         m_kernel   %  N x N x P tensor, where 
 		           %       N: number of vertices
 				   %       P: number of kernels
-        s_mu
+        s_regularizationParameter
         s_sigma    % only valid for single kernel
+		ch_type = 'RKHS superposition'; 
+		           % 'RKHS superposition': ADMM algorithm following
+		           % [bazerque2013basispursuit] 
+				   %
+				   % 'kernel superposition': IIA algorithm from
+				   % [cortes2009regularization]
+               				   
+        b_finishSingleKernel = 0; % if 1, then a last regression step
+		           % performed with the kernel that has strongest weight.
+				   % Current version implements only ridge regression. 
+        s_finishRegularizationParameter =[]; % reg parameter for finishing 
+		           % with ridge regression. If empty, it is set equal to
+		           % s_regularizationParameter.
+				   
+        % IIA parameters
+		s_IIARadius = 1; 
+		s_IIAStepSize = 0.5;
+		s_IIATolerance = 1e-5;
+		v_IIACenter = [];   % if empty => all zero vector
+		s_IIAMaxIterations = 200;
+				
+				   
     end
     
     properties (Dependent)
@@ -32,16 +54,40 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             else
                 str = sprintf('%d kernels', nKernels);
             end
-        end
-    end
+		end
+		
+		function str = b_finishSingleKernel_print(obj)
+			if obj.b_finishSingleKernel
+				str = 'Single kernel finish';
+			else
+				str = '';
+			end
+		end
+	end
     
     methods
+		
         function obj = MkrGraphFunctionEstimator(varargin)  % constructor
             obj@GraphFunctionEstimator(varargin{:});
         end
         
-        function [m_estimate, m_alpha] = estimate(obj, m_samples, m_positions)
-            if isempty(obj.m_kernel) || isempty(obj.s_mu)
+        function [v_estimate, m_alpha , v_theta] = estimate(obj, m_samples, m_positions)
+			% v_estimate:     N x 1 vector with the signal estimate
+			%
+			% if obj.ch_type == 'RKHS superposition', then 
+			%    m_alpha:        S x nKernels vector with a vector of
+			%                    alphas per kernel, where nKernels =
+			%                    size(obj.m_kernel,3) and S =
+			%                    size(m_samples,1).
+			%    v_theta:        empty
+			%
+			% if obj.ch_type == 'kernel superposition', then 
+			%    m_alpha:        S x 1 vector with the vector of alphas
+			%    v_theta:        nKernels x 1 vector with the weight of
+			%                    each kernel
+			
+			% Initial checks
+            if isempty(obj.m_kernel) || isempty(obj.s_regularizationParameter)
                 error('MkrGraphFunctionEstimator:notEnoughInfo',...
                     'Kernel and mu not set');
             elseif ~isequaln(size(m_samples),size(m_positions))
@@ -50,65 +96,89 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             elseif max(m_positions(:)) > size(obj.m_kernel,1)
                 error('MkrGraphFunctionEstimator:outOfBound', ...
                     'position out of bound');
-            end
-            [m_estimate, m_alpha] = obj.estimateSignal(m_samples, m_positions);
-        end
-        
-        function [m_estimate, m_alpha] = estimateSignal(obj,m_samples,m_positions)
-            % This is the function that does the real job
-            [N,M,nKernel] = size(obj.m_kernel);  % N is # of vertices
-            assert(N==M, 'Kernel matrix should be square');
+			end						
+            [N,Np,nKernel] = size(obj.m_kernel);  % N is # of vertices
+            assert(N==Np, 'Kernel matrix should be square');
+			assert(size(m_samples,2)==1,'not implemented');
 			
-            K = obj.m_kernel;
-            K_observed = obj.m_kernel(m_positions, m_positions, :);
-			S = size(m_positions, 1);
-			
-			kernelScale = NaN(nKernel,1);     % normalize kernel matrix
-			for iKernel = 1 : size(K_observed,3)
+			% Kernel preparation and scaling
+			K_observed = obj.m_kernel(m_positions, m_positions, :);
+			kernelScale = NaN(nKernel,1); 
+			for iKernel = 1 : size(K_observed,3) 		
 				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
 				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
-				K(:,:,iKernel) = K(:,:,iKernel) / kernelScale(iKernel);
 			end
-            
-            % estimate alpha
-            alpha = real( obj.estimateAlpha( m_samples, K_observed ) );
 			
-			% recover signal on whole graph
-            m_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
-			m_alpha = zeros(length(m_positions), nKernel);
-            for iKernel = 1 : nKernel
-                alpha_i = alpha( ((iKernel-1)*S + 1) : iKernel*S ); % extract ai
-                Ki = K(:,m_positions,iKernel); % kernel of the whole graph
-                m_estimate = m_estimate + Ki*alpha_i;
-                
-				m_alpha(:,iKernel) = alpha_i;  % record alpha_i
-            end
-        end
+			% Estimation of alpha
+			switch obj.ch_type
+				case 'RKHS superposition'
+					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed ) ;					
+					% undo scaling
+					m_alpha = m_alpha*diag(1./kernelScale);					
+					% recover signal on whole graph
+					v_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
+					for iKernel = 1 : nKernel
+						Ki = obj.m_kernel(:,m_positions,iKernel); % kernel of the whole graph
+						v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
+					end
+					v_theta = [];
+					if obj.b_finishSingleKernel
+						% select kernel with more weight
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
+						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
+% 						if isempty(obj.s_finishRegularizationParameter)
+% 							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
+% 						end
+						
+						% modify to do crossvalidation + ...
+						
+						m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_finishRegularizationParameter*eye(size(m_samples,1)))\m_samples;
+						v_estimate = m_main_kernel(:,m_positions)*m_alpha;
+					end
+				case 'kernel superposition'
+					[m_alpha,v_theta]=  obj.estimateAlphaKernelSuperposition( m_samples, K_observed ) ;
+					% undo scaling
+		            v_theta = diag(1./kernelScale)*v_theta;
+					% recover signal on whole graph
+					m_learnedKernel = obj.thetaToKernel(obj.m_kernel(:, m_positions, :),v_theta);
+					v_estimate = m_learnedKernel*m_alpha;
+					if obj.b_finishSingleKernel
+						error('not implemented');
+					end
+					
+				otherwise
+					error('unrecognized property ch_type')
+			end
+			
+			
+			
+		end
         
-        function a = estimateAlpha(obj, m_samples, K)
+		
+        function m_alpha = estimateAlphaRKHSSuperposition(obj,m_samples, m_sampledKernelMatrix )
             % use group lasso to solve alpha
             % Input:
             %       m_samples       observed signal
-            %       K               kernel matrix for observed part
+            %       K               kernel matrix for observed part			
             % Output:
-            %       alpha           alpha in group lasso format
+            %       a               alpha in group lasso format
             %
             
             S = length(m_samples);
-            u = obj.s_mu;             % regularization parameter
+            mu = obj.s_regularizationParameter;
             y = m_samples;            % observed signal
-            nKernel = size(K,3);      % # of kernels
+            nKernel = size(m_sampledKernelMatrix,3);      % # of kernels
 
             % change variable to group lasso format
             A = NaN(S,S*nKernel);
             for iKernel = 1 : nKernel
-                Ki = K(:,:,iKernel);
+                Ki = m_sampledKernelMatrix(:,:,iKernel);
                 A(:, ((iKernel-1)*S + 1) : iKernel*S ) = mpower(Ki,1/2);
             end
 % 			A = reshape(K, [size(K,1) size(K,2)*size(K,3)]);
             
             % set the parameter for group lasso solver
-            lambda = S/2 * u;
+            lambda = S/2 * mu;
             p = ones(nKernel,1) * S;
             rho = 1;
             alpha = 1;
@@ -118,13 +188,83 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             r = real(r);
             
             % interpret the result
-            a = NaN(S*nKernel,1);
-            for iKernel = 1 : nKernel
+            m_alpha = NaN(S,nKernel);
+            for iKernel = 1 : nKernel				
                 sqrtKi = A(:, ((iKernel-1)*S+1) : iKernel*S);
                 ri = r( ((iKernel-1)*S+1) : iKernel*S );
-                a( ((iKernel-1)*S+1) : iKernel*S ) = sqrtKi \ ri;
-            end
-        end
+                m_alpha(:,iKernel) = real( sqrtKi \ ri );
+			end
+			
+% 			
+% 			m_alpha = zeros(length(m_positions), nKernel);
+%             for iKernel = 1 : nKernel
+%                 alpha_i = alpha( ((iKernel-1)*S + 1) : iKernel*S ); % extract ai
+% 				m_alpha(:,iKernel) = alpha_i;  
+% 			end
+			
+			
+		end
         
+		% functions for 'kernel superposition'
+		function [v_alpha,v_theta] = estimateAlphaKernelSuperposition(obj,m_samples, m_sampledKernelMatrix )
+			
+			if size(m_samples,2)>1
+				error('not implemented');
+			end
+			
+			nKernels = size(m_sampledKernelMatrix,3);
+			S = size(m_samples,1); % number of sampled vertices
+			eta = obj.s_IIAStepSize;
+			
+			if isempty(obj.v_IIACenter)
+				obj.v_IIACenter = zeros( nKernels,1);
+			end
+								
+			% initialization
+			v_theta = obj.v_IIACenter + [obj.s_IIARadius;zeros(nKernels-1,1)];		
+			reg_K =  obj.thetaToKernel(m_sampledKernelMatrix,v_theta) + obj.s_regularizationParameter*S*eye(S);
+			v_alpha = reg_K\m_samples;
+			
+			for iiter = 1:obj.s_IIAMaxIterations
+		
+				v_kappa = obj.alphaToKappa(v_alpha,m_sampledKernelMatrix);
+				v_theta = obj.v_IIACenter + (obj.s_IIARadius/norm(v_kappa))*v_kappa;
+				
+				reg_K =  obj.thetaToKernel(m_sampledKernelMatrix,v_theta) + obj.s_regularizationParameter*S*eye(S);
+				v_alpha_new = eta*v_alpha + (1-eta)*( reg_K\m_samples );
+				
+				if norm(v_alpha_new - v_alpha)<obj.s_IIATolerance					
+					return
+				end
+				v_alpha = v_alpha_new;
+				
+			end
+			warning('maximum number of iterations reached in IIA');			
+			
+		end
+		
+		
+		
 	end
+	
+	methods(Static)
+		function K_of_theta = thetaToKernel(m_sampledKernelMatrix,v_theta)
+			K_of_theta = zeros(size(m_sampledKernelMatrix(:,:,1)));
+			for iKernel = 1:size(m_sampledKernelMatrix,3)
+				K_of_theta = K_of_theta + v_theta(iKernel)*m_sampledKernelMatrix(:,:,iKernel);
+			end					
+		end
+		
+		function v_kappa = alphaToKappa(v_alpha,m_sampledKernelMatrix)
+			nKernels = size(m_sampledKernelMatrix,3);
+			v_kappa = zeros(nKernels,1);
+			for iKernel = 1:nKernels
+				v_kappa(iKernel) = v_alpha'*m_sampledKernelMatrix(:,:,iKernel)*v_alpha;
+			end
+		end
+		
+		
+	end
+	
+	
 end
