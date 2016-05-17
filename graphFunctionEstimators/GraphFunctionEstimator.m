@@ -5,7 +5,7 @@ classdef GraphFunctionEstimator < Parameter
 	
 	properties
 		s_regularizationParameter
-		s_numFoldValidation
+		s_numFoldValidation  = 5;
 	end
 		
 	methods
@@ -27,38 +27,39 @@ classdef GraphFunctionEstimator < Parameter
 			
 			assert(size(v_samples,2)==1,'not implemented');
 			
+            N = obj.getNumOfVertices();
 			m_mse = zeros(1,length(v_mu));
+            cvIndex = crossvalind('Kfold', N, obj.s_numFoldValidation);    % 5-fold cross validation
 			for muInd = 1:length(v_mu)
 				
 				% partition v_positions in obj.s_numFoldValidation subsets
 				% m_cvPositions =   % N0 x obj.s_numFoldValidation matrix
 				
-				for valInd = 1:obj.s_numFoldValidation
-					
+                for valInd = 1:obj.s_numFoldValidation
 					% Create test and validation set
-					% v_samples_training =
-					% v_positions_training =
-					% v_samples_validation =
-					% v_positions_validation =    % indices of the "unobserved"
-					%                       % vertices in crossvalidation
-					
+					v_trainingIndex = (cvIndex == valInd);
+                    v_validationIndex = ~v_trainingIndex;
+                    
+                    m_samples_training = v_samples(v_trainingIndex);
+                    v_positions_training = v_positions(v_trainingIndex);
+                    
+                    % v_samples_validation = v_samples(v_validationIndex);
+                    v_positions_validation = v_positions(v_validationIndex);
 					
 					% Estimate
 					obj.s_regularizationParameter = v_mu(muInd);
-					v_signal_est = obj.estimate(obj,m_samples_training,v_positions_training);
+					v_signal_est = obj.estimate(obj, m_samples_training, v_positions_training);
 					
 					% Measure MSE
-					
-					m_mse(muInd,valInd) = norm( v_samples(v_positions_validation) - v_signal_est(v_positions_validation) )
-				end
-				
-				
+					m_mse(muInd,valInd) = norm( v_samples(v_positions_validation) ...
+                        - v_signal_est(v_positions_validation) )^2 / ...
+                        norm( v_samples(v_positions_validation) )^2;
+                end
 			end
 			v_mse = mean(m_mse,2);
 			[~,s_ind] = min(v_mse);
 			s_optMu = v_mu(s_ind);
-		end
-		
+        end	
 	end
 	
 	methods(Abstract)
@@ -98,7 +99,11 @@ classdef GraphFunctionEstimator < Parameter
 		%          
 		% 
 		
-		
+		N = getNumOfVertices(obj);
+        % return the number of vertices of the graph that this estimator is 
+        %        trying to operate on. Since this base class has no idea what 
+        %        the graphs are likely to be estimated by descendants class
+        %        it is implemented as an abstract class
 		
 	end
 	

@@ -20,6 +20,9 @@ classdef NonParametricGraphFunctionEstimator< GraphFunctionEstimator
             obj@GraphFunctionEstimator(varargin{:});
         end
         
+        function N = getNumOfVertices(obj)
+            N = size(obj.m_kernel,1);
+        end
     end
     
     methods
