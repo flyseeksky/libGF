@@ -2,7 +2,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 'legendString','ch_type','b_finishSingleKernel'};
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter'};
 		c_stringToPrint  = {'', '','',''};
 		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s%s'};
     end
@@ -20,11 +20,15 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 				   %
 				   % 'kernel superposition': IIA algorithm from
 				   % [cortes2009regularization]
-               				   
-        b_finishSingleKernel = 0; % if 1, then a last regression step
+        singleKernelPostEstimator = [];  % if non-empty, the final estimate 
+		           % is computed using the GraphFunctionEstimator
+		           % singleKernelPostEstimator. 
+		
+		
+        %b_finishSingleKernel = 0; % if 1, then a last regression step
 		           % performed with the kernel that has strongest weight.
 				   % Current version implements only ridge regression. 
-        s_finishRegularizationParameter =[]; % reg parameter for finishing 
+        %s_finishRegularizationParameter =[]; % reg parameter for finishing 
 		           % with ridge regression. If empty, it is set equal to
 		           % s_regularizationParameter.
 				   
@@ -56,9 +60,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             end
 		end
 		
-		function str = b_finishSingleKernel_print(obj)
-			if obj.b_finishSingleKernel
-				str = 'Single kernel finish';
+		function str = s_regularizationParameter_print(obj)
+			if ~isempty(obj.s_regularizationParameter)
+				str = 'Finish with single kernel';
 			else
 				str = '';
 			end
@@ -111,7 +115,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			
 			% Estimation of alpha
 			switch obj.ch_type
-				case 'RKHS superposition'
+				case 'RKHS superposition' %juan's
 					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );					
 					% undo scaling
 					m_alpha = m_alpha*diag(1./kernelScale);					

@@ -609,7 +609,7 @@ classdef MultikernelSimulations < simFunctionSet
         function F = compute_fig_3120(obj,niter)		
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
             % mu = 1e-4;
-            sampleSize = 60;
+            sampleSize = 40;
             bandwidthVec = [5 10 20 30 40];
 						
 			% generate graph
@@ -623,7 +623,8 @@ classdef MultikernelSimulations < simFunctionSet
                 num2cell(bandwidthVec), [], {} );
 			
 			% generate Kernel matrix
-			sigmaArray = sqrt(linspace(0.01, 1.5, 10));
+			%sigmaArray = sqrt(linspace(0.01, 1.5, 10));
+			sigmaArray = sqrt(linspace(0.7, 1, 10));
             %sigma = 0.8;
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
@@ -634,12 +635,12 @@ classdef MultikernelSimulations < simFunctionSet
                 's_numberOfSamples', sampleSize);
             	
 			% define function estimator
-            estimatorTemp = MkrGraphFunctionEstimator();
+            estimatorTemp = MkrGraphFunctionEstimator('s_numFoldValidation',10);
             estimator = estimatorTemp.replicate([],{}, ...
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
             
 			% cross validation
-            v_mu = logspace(-6,0,14);
+            v_mu = logspace(-10,0,14);
 			m_graphFunction = generator(1).realization();
             for estIndex = 1 : length(estimator)
                 [v_samples, v_positions] = sampler(1).sample(m_graphFunction);
@@ -1168,9 +1169,9 @@ classdef MultikernelSimulations < simFunctionSet
 			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
 			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','RKHS superposition','kernel superposition'},'',[]);
-            mkl_estimator(1).b_finishSingleKernel = 1;
-			mkl_estimator(1).s_finishRegularizationParameter = 1e7;
-			mkl_estimator(1).c_replicatedVerticallyAlong = [mkl_estimator(1).c_replicatedVerticallyAlong,'b_finishSingleKernel'];
+            v_regPar = 10.^(-6:0);
+			mkl_estimator(1).singleKernelPostEstimator= RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',v_regPar);			
+			mkl_estimator(1).c_replicatedVerticallyAlong = [mkl_estimator(1).c_replicatedVerticallyAlong,'s_regularizationParameter'];
 			est = [mkl_estimator;bl_estimator];
 			
 			% Simulation
