@@ -91,4 +91,10 @@ classdef VariationMinimizationGraphFunctionEstimator< GraphFunctionEstimator
             t=0;
         end
     end
+    
+    methods
+        function N = getNumOfVertices(obj)
+            N = obj.graph.getNumberOfVertices();
+        end
+    end
 end

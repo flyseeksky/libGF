@@ -66,7 +66,9 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
 			
 		end
         
-		
+		function N = getNumOfVertices(obj)
+            N = size(obj.m_kernel,1);
+        end
 		
 	end
 	

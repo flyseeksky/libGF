@@ -69,7 +69,11 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 				str = sprintf('Ass. B = %d',obj.s_bandwidth);
 			end
 			
-		end
+        end
+        
+        function N = getNumOfVertices(obj)
+            N = size(obj.m_laplacian,1);
+        end
 		
 	end
 	

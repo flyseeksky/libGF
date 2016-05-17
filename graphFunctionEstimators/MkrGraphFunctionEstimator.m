@@ -112,7 +112,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			% Estimation of alpha
 			switch obj.ch_type
 				case 'RKHS superposition'
-					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed ) ;					
+					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );					
 					% undo scaling
 					m_alpha = m_alpha*diag(1./kernelScale);					
 					% recover signal on whole graph
@@ -148,9 +148,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					
 				otherwise
 					error('unrecognized property ch_type')
-			end
-			
-			
+            end		
 			
 		end
         
@@ -243,7 +241,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			
 		end
 		
-		
+		function N = getNumOfVertices(obj)
+            N = size(obj.m_kernel,1);
+        end
 		
 	end
 	
