@@ -126,7 +126,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 						v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
 					end
 					v_theta = [];
-					if obj.b_finishSingleKernel
+					if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
 						% select kernel with more weight
 						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
 						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
@@ -135,9 +135,11 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 % 						end
 						
 						% modify to do crossvalidation + ...
+                        obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
+                        v_estimate = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);
 						
-						m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_finishRegularizationParameter*eye(size(m_samples,1)))\m_samples;
-						v_estimate = m_main_kernel(:,m_positions)*m_alpha;
+						%m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_regularizationParameter*eye(size(m_samples,1)))\m_samples;
+						%v_estimate = m_main_kernel(:,m_positions)*m_alpha;
 					end
 				case 'kernel superposition'
 					[m_alpha,v_theta]=  obj.estimateAlphaKernelSuperposition( m_samples, K_observed ) ;
@@ -146,7 +148,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					% recover signal on whole graph
 					m_learnedKernel = obj.thetaToKernel(obj.m_kernel(:, m_positions, :),v_theta);
 					v_estimate = m_learnedKernel*m_alpha;
-					if obj.b_finishSingleKernel
+					if ~isempty(obj.singleKernelPostEstimator)
 						error('not implemented');
 					end
 					

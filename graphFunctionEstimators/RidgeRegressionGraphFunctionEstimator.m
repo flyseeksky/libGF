@@ -44,21 +44,22 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
             elseif max(v_positions(:)) > size(obj.m_kernel,1)
                 error('MkrGraphFunctionEstimator:outOfBound', ...
                     'position out of bound');
-			end						
+            end						
             [N,Np] = size(obj.m_kernel);  % N is # of vertices
             assert(N==Np, 'Kernel matrix should be square');
 			assert(size(v_samples,2)==1,'not implemented');
 			assert(size(obj.m_kernel,3)==1);
 			
 			% Kernel preparation 	
-			if length(obj.s_regularizationParameter)>1
+            if length(obj.s_regularizationParameter)>1
 				% choose s_regularizationParameter via cross validation
-				s_mu = obj.crossValidation(obj,v_samples,v_positions,obj.s_regularizationParameter);
+				s_mu = obj.crossValidation(v_samples,v_positions,obj.s_regularizationParameter);
 			elseif length(obj.s_regularizationParameter) == 1
 				s_mu = obj.s_regularizationParameter;
 			else
 				error('empty obj.s_regularizationParameter');
-			end
+            end
+            obj.s_regularizationParameter = s_mu;
 			m_alpha = (obj.m_kernel(v_positions, v_positions) + size(v_samples,1)*s_mu*eye(size(v_samples,1)))\v_samples;
 			v_estimate = obj.m_kernel(:,v_positions)*m_alpha;
 			

@@ -37,10 +37,9 @@ end
 
 function NMSE = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
 % Monte Carlo simulation
-m_graphFunction = generator.realization();
-
 v_nmse = NaN(MONTE_CARLO,1);
 parfor iMonte = 1:MONTE_CARLO
+    m_graphFunction = generator.realization();
     [m_samples, m_positions] = sampler.sample(m_graphFunction);
     m_estimate = estimator.estimate(m_samples, m_positions);
     v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;

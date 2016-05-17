@@ -624,15 +624,14 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			% generate Kernel matrix
 			%sigmaArray = sqrt(linspace(0.01, 1.5, 10));
-			sigmaArray = sqrt(linspace(0.7, 1, 10));
+			sigmaArray = sqrt(linspace(0.1, 1.5, 20));
             %sigma = 0.8;
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
 			m_kernel = kG.getKernelMatrix();
             
 			% define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
-                's_numberOfSamples', sampleSize);
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples', sampleSize);
             	
 			% define function estimator
             estimatorTemp = MkrGraphFunctionEstimator('s_numFoldValidation',10);
@@ -1137,18 +1136,16 @@ classdef MultikernelSimulations < simFunctionSet
 		%   realizations
 		% - single kernel finish implements CV
 		function F = compute_fig_3403(obj,niter)
-						
-			N = 100; % number of vertices			
-			B = 20; % bandwidth of the true function
+            [N,p,SNR,sampleSize, bandwidth] = MultikernelSimulations.simulationSetting();
+            B = 20;
 			B_vec = [10 20 30 -1]; % assumed bandwidth for estimation
-			SNR = 10; % dB
 			S_vec = 10:5:100;
 			
 			s_beta = 1e10; % amplitude parameter of the bandlimited kernel
 			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
 						
 			% 1. define graph function generator
-			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.7 ,'s_numberOfVertices',N);
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p ,'s_numberOfVertices',N);
 			graph = graphGenerator.realization;			
 			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
 			graphFunction = bandlimitedFunctionGenerator.realization();
@@ -1175,14 +1172,15 @@ classdef MultikernelSimulations < simFunctionSet
 			est = [mkl_estimator;bl_estimator];
 			
 			% Simulation
-			res = Simulator.simStatistic(niter,generator,sampler,est);
-			mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			%res = Simulator.simStatistic(niter,generator,sampler,est);
+			%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+            mse = Simulate(generator, sampler, est, niter);
 			
 			% Representation			
 			F(1) = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
-                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',...
-				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
+                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit', [0 1.5],...
+				'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
 			F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
 			
 		end
