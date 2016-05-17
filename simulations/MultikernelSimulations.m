@@ -605,9 +605,11 @@ classdef MultikernelSimulations < simFunctionSet
 			F.leg_pos_vec = [ 0.3073    0.6041    0.2206    0.3045];
         end
         
+        % 
         function F = compute_fig_3120(obj,niter)		
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
             % mu = 1e-4;
+            sampleSize = 60;
             bandwidthVec = [5 10 20 30 40];
 						
 			% generate graph
@@ -637,9 +639,10 @@ classdef MultikernelSimulations < simFunctionSet
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
             
 			% cross validation
-            v_mu = logspace(-6,0,7);
+            v_mu = logspace(-6,0,14);
+			m_graphFunction = generator(1).realization();
             for estIndex = 1 : length(estimator)
-                [v_samples, v_positions] = sampler(1).sample(generator(1).realization());
+                [v_samples, v_positions] = sampler(1).sample(m_graphFunction);
                 mu(estIndex) = estimator(estIndex).crossValidation(v_samples, v_positions, v_mu);
                 estimator(estIndex).s_regularizationParameter = mu(estIndex);
             end
