@@ -603,6 +603,55 @@ classdef MultikernelSimulations < simFunctionSet
 			F.ylab = 'NMSE';
 			F.tit = '';
 			F.leg_pos_vec = [ 0.3073    0.6041    0.2206    0.3045];
+        end
+        
+        function F = compute_fig_3120(obj,niter)		
+			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+            % mu = 1e-4;
+            bandwidthVec = [5 10 20 30 40];
+						
+			% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            % generate signal on this graph
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
+            functionGenerator.b_generateSameFunction = 1;
+            generator = functionGenerator.replicate('s_bandwidth', ...
+                num2cell(bandwidthVec), [], {} );
+			
+			% generate Kernel matrix
+			sigmaArray = sqrt(linspace(0.01, 1.5, 10));
+            %sigma = 0.8;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
+                's_numberOfSamples', sampleSize);
+            	
+			% define function estimator
+            estimatorTemp = MkrGraphFunctionEstimator();
+            estimator = estimatorTemp.replicate([],{}, ...
+                'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
+            
+			% cross validation
+            v_mu = logspace(-6,0,7);
+            for estIndex = 1 : length(estimator)
+                [v_samples, v_positions] = sampler(1).sample(generator(1).realization());
+                mu(estIndex) = estimator(estIndex).crossValidation(v_samples, v_positions, v_mu);
+                estimator(estIndex).s_regularizationParameter = mu(estIndex);
+            end
+            
+			% Simulation
+            mse = Simulate(generator, sampler, estimator, niter);
+            
+            % Representation
+            F = F_figure('X',sigmaArray.^2,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler, estimator),...
+                'xlab','\sigma^2','ylab','Normalized MSE',...
+                'tit', sprintf('N=%d, p=%2.2f, S = %d', N, p, sampleSize));		  
 		end
 		
 		% 2) Figures for tuning the regularization parameter ==============

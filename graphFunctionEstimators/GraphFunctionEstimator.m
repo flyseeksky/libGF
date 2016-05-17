@@ -27,9 +27,10 @@ classdef GraphFunctionEstimator < Parameter
 			
 			assert(size(v_samples,2)==1,'not implemented');
 			
-            N = obj.getNumOfVertices();
-			m_mse = zeros(1,length(v_mu));
-            cvIndex = crossvalind('Kfold', N, obj.s_numFoldValidation);    % 5-fold cross validation
+            %N = obj.getNumOfVertices();
+            S = length(v_samples);
+			m_mse = NaN(length(v_mu), obj.s_numFoldValidation);
+            cvIndex = crossvalind('Kfold', S, obj.s_numFoldValidation);    % 5-fold cross validation
 			for muInd = 1:length(v_mu)
 				
 				% partition v_positions in obj.s_numFoldValidation subsets
@@ -37,23 +38,23 @@ classdef GraphFunctionEstimator < Parameter
 				
                 for valInd = 1:obj.s_numFoldValidation
 					% Create test and validation set
-					v_trainingIndex = (cvIndex == valInd);
-                    v_validationIndex = ~v_trainingIndex;
+					v_validationIndex = (cvIndex == valInd);
+                    v_trainingIndex = ~v_validationIndex;
                     
                     m_samples_training = v_samples(v_trainingIndex);
                     v_positions_training = v_positions(v_trainingIndex);
                     
-                    % v_samples_validation = v_samples(v_validationIndex);
+                    v_samples_validation = v_samples(v_validationIndex);
                     v_positions_validation = v_positions(v_validationIndex);
 					
 					% Estimate
 					obj.s_regularizationParameter = v_mu(muInd);
-					v_signal_est = obj.estimate(obj, m_samples_training, v_positions_training);
+					v_signal_est = obj.estimate(m_samples_training, v_positions_training);
 					
 					% Measure MSE
-					m_mse(muInd,valInd) = norm( v_samples(v_positions_validation) ...
-                        - v_signal_est(v_positions_validation) )^2 / ...
-                        norm( v_samples(v_positions_validation) )^2;
+					m_mse(muInd,valInd) = norm( v_samples_validation - ...
+                        v_signal_est(v_positions_validation) )^2 / ...
+                        norm( v_samples_validation )^2;
                 end
 			end
 			v_mse = mean(m_mse,2);
