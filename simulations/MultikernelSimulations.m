@@ -807,7 +807,69 @@ classdef MultikernelSimulations < simFunctionSet
 				'xlab', '\mu', 'ylab', 'NMSE');
 			F = F_figure('multiplot_array',multiplot_array);
 
+        end
+        
+        %
+        % Estimate bandwidth of bandlimited graph signals
+        %     Use mkl estimator to find the best kernel, which is generated using
+        %     the corresponding bandlimited kernels
+        function F = compute_fig_3232(obj, niter)
+						
+            [N,p,SNR,sampleSize,bandwidth] = MultikernelSimulations.simulationSetting();
+            u_Vec = logspace(-6,0,50);
+            
+						
+			% 1. generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            % 2. generate graph function
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
+			%m_graphFunction = functionGenerator.realization();
+            %generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
+			
+			% 3. generate Kernel matrix
+			%sigmaArray = linspace(0.1, 1.5, 20);
+            B_vec = 10:10:90;
+            beta = 10;   % for bandlimited kernel
+            %sigmaArray = 0.80;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(L, B_vec, beta));
+			m_kernel = kG.getKernelMatrix();
+            
+            % 4. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',sampleSize);
+            
+            % 5. define function estimator
+            estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel, 's_regularizationParameter', 1e-1);
+            estimator.b_estimateFreq = 1;
+            %estimator = estimator.replicate([],{}, ...
+            %    's_regularizationParameter', num2cell(u_Vec));
+			
+			
+			% Simulation
+            bandwidth_vec = 10:10:60;
+            estimated_bandwidth = zeros(length(bandwidth_vec),niter);
+            for iBand = 1:length(bandwidth_vec)
+                for iter = 1:niter
+                    functionGenerator.s_bandwidth = bandwidth_vec(iBand);
+                    v_graphFunction = functionGenerator.realization();
+                    [m_samples, m_positions] = sampler.sample(v_graphFunction);
+                    [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimator.estimate(m_samples, m_positions);
+                    estimated_bandwidth(iBand, iter) = B_vec(main_kernel_ind);
+                end
+                MultikernelSimulations.printSimulationProgress(iBand, iter, length(bandwidth_vec), niter)
+            end
+            est_bandwidth = mean(estimated_bandwidth, 2);
+            %mse = Simulate(generator, sampler, estimator, niter);
+			
+			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth'], ...
+				'xlab', 'experiment index', 'ylab', 'bandwidth', ...
+                'tit', sprintf('N=%d, p=%2.2f, S=%d, numOfKernels=%d', ...
+                N, p, sampleSize, length(B_vec)), ...
+                'leg',{'true bandwidth','estimated bandwidth'});
 		end
+        
+        
 
  	
 		% 3) Figures to compare MKL and bandlimited =======================
@@ -1140,6 +1202,7 @@ classdef MultikernelSimulations < simFunctionSet
             B = 20;
 			B_vec = [10 20 30 -1]; % assumed bandwidth for estimation
 			S_vec = 10:5:100;
+            mu_vec = logspace(-10,0,10);
 			
 			s_beta = 1e10; % amplitude parameter of the bandlimited kernel
 			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
@@ -1244,7 +1307,16 @@ classdef MultikernelSimulations < simFunctionSet
 				Kcol(rowInd,1) = (1/vertexNum)*sum( exp(1j*2*pi/vertexNum*(0:vertexNum-1)*Dinds(rowInd))./rFun(2*(1-cos(2*pi/vertexNum*(0:vertexNum-1)))));
 			end
 			Kcol = real(Kcol);
-		end
+        end
+        
+        function printSimulationProgress(outer_iter, inner_iter, max_outer_iter, max_inner_iter)
+            ROW = max_outer_iter;
+            COL = max_inner_iter;
+            iRow = outer_iter;
+            iCol = inner_iter;
+            fprintf('Simulation progress\t%3.1f%%\n', ...
+                100*(iCol+(iRow-1)*COL)/(ROW*COL) );
+        end
 		
 	end
 

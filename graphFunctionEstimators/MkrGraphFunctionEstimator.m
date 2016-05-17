@@ -31,7 +31,14 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         %s_finishRegularizationParameter =[]; % reg parameter for finishing 
 		           % with ridge regression. If empty, it is set equal to
 		           % s_regularizationParameter.
-				   
+        b_estimateFreq = 0;   % If bandlimited kernels are used to estimate 
+                   % frequencies of graph signals, then set this bit to 1. 
+                   % The effect is that the "best" kernel index will be returned
+                   % to determine which bandlimited kernel is best, thus getting
+                   % the estimated frequency of graph signals
+    end
+    
+    properties	% IIA related properties  
         % IIA parameters
 		s_IIARadius = 1; 
 		s_IIAStepSize = 0.5;
@@ -75,7 +82,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             obj@GraphFunctionEstimator(varargin{:});
         end
         
-        function [v_estimate, m_alpha , v_theta] = estimate(obj, m_samples, m_positions)
+        function [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
 			% v_estimate:     N x 1 vector with the signal estimate
 			%
 			% if obj.ch_type == 'RKHS superposition', then 
@@ -100,7 +107,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             elseif max(m_positions(:)) > size(obj.m_kernel,1)
                 error('MkrGraphFunctionEstimator:outOfBound', ...
                     'position out of bound');
-			end						
+            end						
             [N,Np,nKernel] = size(obj.m_kernel);  % N is # of vertices
             assert(N==Np, 'Kernel matrix should be square');
 			assert(size(m_samples,2)==1,'not implemented');
@@ -111,14 +118,21 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			for iKernel = 1 : size(K_observed,3) 		
 				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
 				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
-			end
+            end
+            
+            % do cross validation to select best regularization parameter
+            if length(obj.s_regularizationParameter) > 1
+                obj.s_numFoldValidation = 10;
+                obj.s_regularizationParameter = obj.crossValidation(m_samples, m_positions, obj.s_regularizationParameter);
+            end
 			
 			% Estimation of alpha
 			switch obj.ch_type
 				case 'RKHS superposition' %juan's
 					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );					
 					% undo scaling
-					m_alpha = m_alpha*diag(1./kernelScale);					
+					%m_alpha = m_alpha*diag(1./kernelScale);
+                    m_alpha = m_alpha*diag(kernelScale);
 					% recover signal on whole graph
 					v_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
 					for iKernel = 1 : nKernel
@@ -126,7 +140,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 						v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
 					end
 					v_theta = [];
-					if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
+					if obj.b_estimateFreq
 						% select kernel with more weight
 						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
 						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
@@ -134,12 +148,14 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 % 							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
 % 						end
 						
+                        if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
 						% modify to do crossvalidation + ...
                         obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
                         v_estimate = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);
 						
 						%m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_regularizationParameter*eye(size(m_samples,1)))\m_samples;
 						%v_estimate = m_main_kernel(:,m_positions)*m_alpha;
+                        end
 					end
 				case 'kernel superposition'
 					[m_alpha,v_theta]=  obj.estimateAlphaKernelSuperposition( m_samples, K_observed ) ;
