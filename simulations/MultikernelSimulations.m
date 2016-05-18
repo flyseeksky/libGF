@@ -364,7 +364,7 @@ classdef MultikernelSimulations < simFunctionSet
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
 			mu = 1e-4;
 			B = 20;  % used to generate graph signals
-            bandwidthVec = 10:10:60;  % used to build bandlimited kernels
+            bandwidthVec = 10:5:40;  % used to build bandlimited kernels
 			S_vec = 10:5:90;
 			beta = 1000;
 						
@@ -403,15 +403,17 @@ classdef MultikernelSimulations < simFunctionSet
 		
 		% Figure: ||alpha_i|| vs \mu
 		%      shows sparsity pattern of bandlimited kernels
-		%
+		%      This simulation aims to show that the best single kernel is the
+		%      to vanish when mu is increased large enough. If this is true, 
+		%	   then bandwidth estimation is possible
 		function F = compute_fig_3130(obj, niter)
 			
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
 			B = 20;  % used to generate graph signals
 			u_Vec = logspace(-6,0,50);
 			
-			s_beta = 1e3; % amplitude parameter of the bandlimited kernel
-			v_B_values = 10:10:40; % bandwidth parameter for the bandlimited kernel
+			s_beta = 1e3;				% amplitude of the bandlimited kernel
+			v_B_values = 10:5:40;		% bandwidth for the bandlimited kernel
 			
 			% 1. generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
@@ -430,8 +432,7 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			% 5. define function estimator
 			estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel);
-			estimator = estimator.replicate([],{}, ...
-				's_regularizationParameter', num2cell(u_Vec));
+			estimator = estimator.replicate([],{}, 's_regularizationParameter', num2cell(u_Vec));
 			
 			[m_samples, m_positions] = sampler.sample(v_graphFunction);
 			m_alpha = zeros( length(m_samples), size(m_kernel,3), length(u_Vec) );
@@ -452,7 +453,8 @@ classdef MultikernelSimulations < simFunctionSet
             end
 			
 			multiplot_array(1,1) = F_figure('X', u_Vec, 'Y', anorm', 'logx', true, ...
-				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','East');
+				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','East',...
+				'tit', sprintf('signal B = %d, S = %d',B, sampleSize));
 			multiplot_array(2,1) = F_figure('X', u_Vec, 'Y', v_nmse, 'logx', true, ...
 				'xlab', '\mu', 'ylab', 'NMSE');
 			F(1) = F_figure('multiplot_array',multiplot_array);
@@ -644,7 +646,7 @@ classdef MultikernelSimulations < simFunctionSet
 			S = 50; % number of observed vertices
 			u_Vec = logspace(-6,0,50);
 			
-			s_beta = 1e10; % amplitude parameter of the bandlimited kernel
+			s_beta = 1e6; % amplitude parameter of the bandlimited kernel
 			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
 			
 			% 1. generate graph
