@@ -5,7 +5,7 @@ classdef GraphFunctionEstimator < Parameter
 	
 	properties
 		s_regularizationParameter
-		s_numFoldValidation  = 5;
+		s_numFoldValidation  = 10;
 	end
 		
 	methods
