@@ -54,9 +54,9 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
                 M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
 					m_B*sort(randn(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
 			else
-% 				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
-% 					m_B*randn(obj.s_bandwidth,s_numberOfRealizations);
-				M_graphFunction = m_B*sqrt(.5)*randn(obj.s_bandwidth,s_numberOfRealizations)+ obj.s_mean;
+				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+					m_B*randn(obj.s_bandwidth,s_numberOfRealizations);
+				%M_graphFunction = randn(obj.s_bandwidth,s_numberOfRealizations);
 			end
 				
 				%             N = obj.graph.getNumberOfVertices();

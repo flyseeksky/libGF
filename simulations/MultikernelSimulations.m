@@ -928,13 +928,15 @@ classdef MultikernelSimulations < simFunctionSet
 			graph = graphGenerator.realization();
             % 2. generate graph function
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
+			functionGenerator.b_sortedSpectrum = 0;
+			functionGenerator.b_generateSameFunction = 0;
 			%m_graphFunction = functionGenerator.realization();
             %generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 			
 			% 3. generate Kernel matrix
 			%sigmaArray = linspace(0.1, 1.5, 20);
             B_vec = 10:10:90;
-            beta = 10;   % for bandlimited kernel
+            beta = 10^5;   % for bandlimited kernel
             %sigmaArray = 0.80;
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(L, B_vec, beta));
@@ -965,6 +967,32 @@ classdef MultikernelSimulations < simFunctionSet
             end
             est_bandwidth = mean(estimated_bandwidth, 2);
             %mse = Simulate(generator, sampler, estimator, niter);
+			est_var = var(estimated_bandwidth');
+			
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			% print the table into a tex file
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			fid = fopen('est_freq.tex','w');
+			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(est_bandwidth))));     % heading line
+			fprintf(fid, '\t\\hline\n\t\t');
+			for i = 1:length(bandwidth_vec)
+				fprintf(fid, ' & B = %d', bandwidth_vec(i));
+			end
+			
+			% print mean
+			fprintf(fid, '\\\\\n\tmean\t');
+			for i = 1:length(est_bandwidth)
+				fprintf(fid, ' & %2.1f', est_bandwidth(i));
+			end
+			fprintf(fid, '\\\\\n\tvar\t');
+			% print variance
+			for i = 1:length(est_var)
+				fprintf(fid, ' & %2.1f', est_var(i));
+			end
+			fprintf(fid, '\\\\\n');
+			fprintf(fid, '\t\\hline\n');
+			fprintf(fid, '\\end{tabular}');		% bottom line
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			
 			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth'], ...
 				'xlab', 'experiment index', 'ylab', 'bandwidth', ...
