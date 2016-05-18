@@ -1,4 +1,4 @@
-classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
+classdef RidgeRegressionGraphFunctionEstimator < KernelGraphFunctionEstimator
     % Function estimator using kernel regression
     
     properties
@@ -9,42 +9,37 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
     
     properties
 		ch_name = 'Kernel RR';
-        m_kernel   %  N x N kernel matrix
-		           %       N: number of vertices
+       			   
 				   
     end
         
     methods
 		
         function obj = RidgeRegressionGraphFunctionEstimator(varargin)  % constructor
-            obj@GraphFunctionEstimator(varargin{:});
+            obj@KernelGraphFunctionEstimator(varargin{:});
         end
         
-        function [v_estimate, m_alpha ] = estimate(obj, v_samples, v_positions)
-			%    v_positions     S x 1 vector with the indices of the
-			%                    sampled vertices
-			% 
-			%    v_samples:      S x 1 vector with the (possibly noisy)
-			%                    function values: v_samples(i) is the
-			%                    observation at node v_positions(i)
-			%
-			%
-			%    v_estimate:     N x 1 vector with the signal estimate			
-			%
+		function [v_estimate, m_alpha ] = estimate(obj, v_samples, sideInfo)
+			% See header of GraphFunctionEstimator@estimate 		
 			%    m_alpha:        S x 1 vector with the vector of alphas
 			
+			if isstruct(sideInfo)
+				v_positions = sideInfo.v_sampledEntries;
+			else
+				v_positions = sideInfo;
+			end
 			
 			% Initial checks
-            if isempty(obj.m_kernel) || isempty(obj.s_regularizationParameter)
-                error('MkrGraphFunctionEstimator:notEnoughInfo',...
-                    'Kernel and mu not set');
-            elseif ~isequaln(size(v_samples),size(v_positions))				
-                error('MkrGraphFunctionEstimator:inconsistentParameter',...
-                    'size of m_positions and m_samples not the same');
-            elseif max(v_positions(:)) > size(obj.m_kernel,1)
-                error('MkrGraphFunctionEstimator:outOfBound', ...
-                    'position out of bound');
-            end						
+			if isempty(obj.m_kernel) || isempty(obj.s_regularizationParameter)
+				error('MkrGraphFunctionEstimator:notEnoughInfo',...
+					'Kernel and mu not set');
+			elseif ~isequaln(size(v_samples),size(v_positions))
+				error('MkrGraphFunctionEstimator:inconsistentParameter',...
+					'size of m_positions and m_samples not the same');
+			elseif max(v_positions(:)) > size(obj.m_kernel,1)
+				error('MkrGraphFunctionEstimator:outOfBound', ...
+					'position out of bound');
+			end
             [N,Np] = size(obj.m_kernel);  % N is # of vertices
             assert(N==Np, 'Kernel matrix should be square');
 			assert(size(v_samples,2)==1,'not implemented');
@@ -61,8 +56,14 @@ classdef RidgeRegressionGraphFunctionEstimator < GraphFunctionEstimator
             end
             obj.s_regularizationParameter = s_mu;
 			m_alpha = (obj.m_kernel(v_positions, v_positions) + size(v_samples,1)*s_mu*eye(size(v_samples,1)))\v_samples;
-			v_estimate = obj.m_kernel(:,v_positions)*m_alpha;
+			v_estimate_vec = obj.m_kernel(:,v_positions)*m_alpha;
 			
+			% selecting only the requested samples
+			if isstruct(sideInfo)
+				v_estimate.v_wantedSamples = v_estimate_vec(sideInfo.v_wantedEntries);
+			else
+				v_estimate = v_estimate_vec;
+			end
 			
 			
 		end

@@ -87,15 +87,14 @@ classdef GraphFunctionEstimator < Parameter
 		%                           indices of the desired vertices. If not
 		%                           defined, it is assumed that this field
 		%                           is 1:N.
-		%         sideInfo(i).graph: graph over which the signal has been
-		%                           sampled
 		%
 		% Output:                   
-		% estimate                  It can be either:
-		%      a) an N x S_NUMBEROFREALIZATIONS matrix. N is the number of
+		% estimate                  If sideInfo is not a struct, then it is
+		%      an N x S_NUMBEROFREALIZATIONS matrix. N is the number of
 		%      nodes and each column contains the estimate of the graph
 		%      function 
-		%      b) a 1 x S_NUMBEROFREALIZATIONS vector of structs with
+		%                           If sideInfo IS a struct, then it is            
+		%      a 1 x S_NUMBEROFREALIZATIONS vector of structs with
 		%      fields
 		%         estimate(i).v_wantedSamples: W x 1 vector containing the
 		%                            estimated signal at the entries
