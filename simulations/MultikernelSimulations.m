@@ -861,6 +861,32 @@ classdef MultikernelSimulations < simFunctionSet
             end
             est_bandwidth = mean(estimated_bandwidth, 2);
             %mse = Simulate(generator, sampler, estimator, niter);
+			est_var = var(estimated_bandwidth');
+			
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			% print the table into a tex file
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			fid = fopen('est_freq.tex','w');
+			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(est_bandwidth))));     % heading line
+			fprintf(fid, '\t\\hline\n\t\t');
+			for i = 1:length(bandwidth_vec)
+				fprintf(fid, ' & B = %d', bandwidth_vec(i));
+			end
+			
+			% print mean
+			fprintf(fid, '\\\\\n\tmean\t');
+			for i = 1:length(est_bandwidth)
+				fprintf(fid, ' & %2.1f', est_bandwidth(i));
+			end
+			fprintf(fid, '\\\\\n\tvar\t');
+			% print variance
+			for i = 1:length(est_var)
+				fprintf(fid, ' & %2.1f', est_var(i));
+			end
+			fprintf(fid, '\\\\\n');
+			fprintf(fid, '\t\\hline\n');
+			fprintf(fid, '\\end{tabular}');		% bottom line
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			
 			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth'], ...
 				'xlab', 'experiment index', 'ylab', 'bandwidth', ...
