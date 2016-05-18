@@ -82,7 +82,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             obj@GraphFunctionEstimator(varargin{:});
         end
         
-        function [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
+        function [v_estimate, m_alpha_norm , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
 			% v_estimate:     N x 1 vector with the signal estimate
 			%
 			% if obj.ch_type == 'RKHS superposition', then 
@@ -128,9 +128,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			% Estimation of alpha
 			switch obj.ch_type
 				case 'RKHS superposition' %juan's
-					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );
+					m_alpha_norm =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );
 					% undo scaling
-					m_alpha = m_alpha*diag(1./kernelScale);
+					m_alpha = m_alpha_norm*diag(1./kernelScale);
 					%m_alpha = m_alpha*diag(kernelScale);
 					% recover signal on whole graph
 					
