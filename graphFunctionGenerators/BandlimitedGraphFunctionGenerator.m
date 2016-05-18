@@ -11,7 +11,7 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 		ch_name = 'Bandlimited';
 		s_bandwidth    % integer
 		
-		b_sortedSpectrum = 1;  % if 1, the entries of the Fourier transform 
+		b_sortedSpectrum = 0;  % if 1, the entries of the Fourier transform 
 		% are generated and then sorted
         
         b_generateSameFunction = 0; % generate the same function if set to 1

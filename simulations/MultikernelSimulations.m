@@ -824,6 +824,7 @@ classdef MultikernelSimulations < simFunctionSet
 			graph = graphGenerator.realization();
             % 2. generate graph function
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
+			functionGenerator.b_sortedSpectrum = 1;
 			%m_graphFunction = functionGenerator.realization();
             %generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
 			
