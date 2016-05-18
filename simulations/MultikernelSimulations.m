@@ -357,6 +357,110 @@ classdef MultikernelSimulations < simFunctionSet
                 'xlab','\sigma^2','ylab','Normalized MSE',...
                 'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, S = %d', N, p, mu, sampleSize));		  
 		end
+		
+		% Figure NMSE vs samplesize
+		%    each curve corresponds to one bandwidth -- bandlimited kernel
+		function F = compute_fig_3110(obj,niter)
+			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+			mu = 1e-4;
+			B = 20;  % used to generate graph signals
+            bandwidthVec = 10:10:60;  % used to build bandlimited kernels
+			S_vec = 10:5:90;
+			beta = 1000;
+						
+			% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            % generate signal on this graph
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth', B);
+			
+			% generate Kernel matrix
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle( L , bandwidthVec , beta));
+			m_kernel = kG.getKernelMatrix();
+            
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
+			sampler = sampler.replicate([],{},'s_numberOfSamples', num2cell(S_vec));
+			
+			% define function estimator
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+            estimator = estimator.replicate('m_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))),[],{});
+			
+			% Simulation
+            mse = Simulate(generator, sampler, estimator, niter);
+            
+            % Representation
+			for i = 1:length(bandwidthVec)
+				legendStr{i}  = sprintf('B = %d', bandwidthVec(i));
+			end
+            F = F_figure('X',S_vec,'Y',mse, ...
+                'leg',legendStr, 'ylimit', [0 1.5], ...
+                'xlab','sample size','ylab','Normalized MSE',...
+                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, signal bandwidth = %d', N, p, mu, B));		  
+		end
+		
+		% Figure: ||alpha_i|| vs \mu
+		%      shows sparsity pattern of bandlimited kernels
+		%
+		function F = compute_fig_3130(obj, niter)
+			
+			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+			B = 20;  % used to generate graph signals
+			u_Vec = logspace(-6,0,50);
+			
+			s_beta = 1e3; % amplitude parameter of the bandlimited kernel
+			v_B_values = 10:10:40; % bandwidth parameter for the bandlimited kernel
+			
+			% 1. generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+			
+			% 2. generate graph function
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			v_graphFunction = functionGenerator.realization();
+			
+			% 3. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',sampleSize);
+			
+			% 4. generate Kernel matrix
+			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));
+			m_kernel = kG.getKernelMatrix();
+			
+			% 5. define function estimator
+			estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel);
+			estimator = estimator.replicate([],{}, ...
+				's_regularizationParameter', num2cell(u_Vec));
+			
+			[m_samples, m_positions] = sampler.sample(v_graphFunction);
+			m_alpha = zeros( length(m_samples), size(m_kernel,3), length(u_Vec) );
+			for icount = 1 : length(u_Vec)
+				estimator_now = estimator(icount);
+				
+				[v_graphFunction_estimate, alpha] = estimator_now.estimate(m_samples, m_positions);
+				m_alpha(:,:,icount) = alpha;
+				
+				v_nmse(icount) = norm( v_graphFunction - v_graphFunction_estimate)^2/norm( v_graphFunction )^2;
+			end
+			
+			anorm = sum( m_alpha.^2, 1 );
+			anorm = permute(anorm, [3 2 1]);			
+			 
+            for icount = 1:length(v_B_values)
+                legendStr{icount} = sprintf('B = %d',v_B_values(icount));
+            end
+			
+			multiplot_array(1,1) = F_figure('X', u_Vec, 'Y', anorm', 'logx', true, ...
+				'xlab', '\mu', 'ylab', '||\alpha_i||^2','leg',legendStr,'leg_pos','East');
+			multiplot_array(2,1) = F_figure('X', u_Vec, 'Y', v_nmse, 'logx', true, ...
+				'xlab', '\mu', 'ylab', 'NMSE');
+			F(1) = F_figure('multiplot_array',multiplot_array);
+						
+			F(2) = F_figure('Y',graph.getFourierTransform(v_graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+			
+			
+		end
 				
 		% Figure: NMSE vs sigma (diffusion kernel parameter)
 		% This figure will show the importance of choosing the right
@@ -364,7 +468,7 @@ classdef MultikernelSimulations < simFunctionSet
 		%     parameter if different kernel types are used.)
 		function F = compute_fig_3101(obj,niter)
 			[N,p,SNR,sampleSize,bandwidth] = MultikernelSimulations.simulationSetting();
-            S_Vec = 10:20:80;
+            S_Vec = 10:10:80;
             mu = 1e-2;
 						
 			% generate graph and signal
