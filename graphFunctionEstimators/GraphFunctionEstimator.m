@@ -69,12 +69,14 @@ classdef GraphFunctionEstimator < Parameter
 	
 	methods(Abstract)
 				
-		estimate = estimate(obj,m_samples,sideInfo);			
+		estimate = estimate(obj,m_samples,sideInfo,m_wantedEntries);			
 		%
 		% Input:
-		% M_SAMPLES                 S x S_NUMBEROFREALIZATIONS  matrix with
+		% M_SAMPLES                 
+		%                           S x S_NUMBEROFREALIZATIONS  matrix with
 		%                           samples of the graph function in
 		%                           M_GRAPHFUNCTION 
+		%                           
 		% sideInfo                  It can be either:
 		%      a) an S x S_NUMBEROFREALIZATIONS matrix containing the
 		%      indices of the vertices where the samples were taken
