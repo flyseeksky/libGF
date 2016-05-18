@@ -1196,23 +1196,20 @@ classdef MultikernelSimulations < simFunctionSet
 		% kernels. 
 		% - bandlimited signal, but MC does not average across signal
 		%   realizations
-		% - single kernel finish implements CV
+		% - single kernel finish implements CV		
 		function F = compute_fig_3403(obj,niter)
             [N,p,SNR,sampleSize, bandwidth] = MultikernelSimulations.simulationSetting();
             B = 20;
 			B_vec = [10 20 30 -1]; % assumed bandwidth for estimation
-			S_vec = 10:5:100;
-            mu_vec = logspace(-10,0,10);
+			S_vec = 10:5:100;      
 			
-			s_beta = 1e10; % amplitude parameter of the bandlimited kernel
+			s_beta = 1e5; % amplitude parameter of the bandlimited kernel
 			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
 						
 			% 1. define graph function generator
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p ,'s_numberOfVertices',N);
 			graph = graphGenerator.realization;			
-			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
-			graphFunction = bandlimitedFunctionGenerator.realization();
-			generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
 			
 			% 2. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
@@ -1226,7 +1223,7 @@ classdef MultikernelSimulations < simFunctionSet
 			% 4. MKL function estimators	
 			% 4. generate Kernel matrix
 			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));			
-			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3);
+			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
 			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','RKHS superposition','kernel superposition'},'',[]);
             v_regPar = 10.^(-6:0);
@@ -1243,10 +1240,11 @@ classdef MultikernelSimulations < simFunctionSet
 			F(1) = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
                 'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit', [0 1.5],...
-				'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
-			F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+				'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,generator,sampler));
+			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
 			
 		end
+		
 		
 		
 		
