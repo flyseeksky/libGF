@@ -68,7 +68,11 @@ classdef IPRGraphFunctionEstimator < GraphFunctionEstimator
 				m_estimate(:,iRealization) = IPRGraphFunctionEstimator.iprEstimate(m_samples(:,iRealization),m_positions(:,iRealization),Proj,obj.m_laplacian);
 			end
 				
-		end
+        end
+        
+        function N = getNumOfVertices(obj)
+            N = size(obj.m_laplacian,1);
+        end
 		
 	end
 	

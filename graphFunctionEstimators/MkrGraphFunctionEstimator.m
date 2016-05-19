@@ -2,7 +2,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 'legendString','ch_type','b_finishSingleKernel'};
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter'};
 		c_stringToPrint  = {'', '','',''};
 		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s%s'};
     end
@@ -12,7 +12,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
         m_kernel   %  N x N x P tensor, where 
 		           %       N: number of vertices
 				   %       P: number of kernels
-        s_regularizationParameter
+        %s_regularizationParameter
         s_sigma    % only valid for single kernel
 		ch_type = 'RKHS superposition'; 
 		           % 'RKHS superposition': ADMM algorithm following
@@ -20,14 +20,25 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 				   %
 				   % 'kernel superposition': IIA algorithm from
 				   % [cortes2009regularization]
-               				   
-        b_finishSingleKernel = 0; % if 1, then a last regression step
+        singleKernelPostEstimator = [];  % if non-empty, the final estimate 
+		           % is computed using the GraphFunctionEstimator
+		           % singleKernelPostEstimator. 
+		
+		
+        %b_finishSingleKernel = 0; % if 1, then a last regression step
 		           % performed with the kernel that has strongest weight.
 				   % Current version implements only ridge regression. 
-        s_finishRegularizationParameter =[]; % reg parameter for finishing 
+        %s_finishRegularizationParameter =[]; % reg parameter for finishing 
 		           % with ridge regression. If empty, it is set equal to
 		           % s_regularizationParameter.
-				   
+        b_estimateFreq = 0;   % If bandlimited kernels are used to estimate 
+                   % frequencies of graph signals, then set this bit to 1. 
+                   % The effect is that the "best" kernel index will be returned
+                   % to determine which bandlimited kernel is best, thus getting
+                   % the estimated frequency of graph signals
+    end
+    
+    properties	% IIA related properties  
         % IIA parameters
 		s_IIARadius = 1; 
 		s_IIAStepSize = 0.5;
@@ -50,15 +61,15 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             % this task
             nKernels = size(obj.m_kernel,3);
             if nKernels == 1
-                str = sprintf('1 kernel, \\sigma = %3.2f', obj.s_sigma);
+                str = sprintf('1 kernel, \\sigma^2 = %3.2f', obj.s_sigma^2);
             else
                 str = sprintf('%d kernels', nKernels);
             end
 		end
 		
-		function str = b_finishSingleKernel_print(obj)
-			if obj.b_finishSingleKernel
-				str = 'Single kernel finish';
+		function str = s_regularizationParameter_print(obj)
+			if ~isempty(obj.s_regularizationParameter)
+				str = 'Finish with single kernel';
 			else
 				str = '';
 			end
@@ -71,7 +82,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             obj@GraphFunctionEstimator(varargin{:});
         end
         
-        function [v_estimate, m_alpha , v_theta] = estimate(obj, m_samples, m_positions)
+        function [v_estimate, m_alpha_norm , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
 			% v_estimate:     N x 1 vector with the signal estimate
 			%
 			% if obj.ch_type == 'RKHS superposition', then 
@@ -96,7 +107,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             elseif max(m_positions(:)) > size(obj.m_kernel,1)
                 error('MkrGraphFunctionEstimator:outOfBound', ...
                     'position out of bound');
-			end						
+            end						
             [N,Np,nKernel] = size(obj.m_kernel);  % N is # of vertices
             assert(N==Np, 'Kernel matrix should be square');
 			assert(size(m_samples,2)==1,'not implemented');
@@ -106,48 +117,65 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			kernelScale = NaN(nKernel,1); 
 			for iKernel = 1 : size(K_observed,3) 		
 				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
+				%kernelScale(iKernel) = sum(sum(abs(K_observed(:,:,iKernel))))/N;
 				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
-			end
+            end
+            
+            % do cross validation to select best regularization parameter
+            if length(obj.s_regularizationParameter) > 1
+                obj.s_regularizationParameter = obj.crossValidation(m_samples, m_positions, obj.s_regularizationParameter);
+            end
 			
 			% Estimation of alpha
 			switch obj.ch_type
-				case 'RKHS superposition'
-					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed ) ;					
+				case 'RKHS superposition' %juan's
+					m_alpha_norm =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );
 					% undo scaling
-					m_alpha = m_alpha*diag(1./kernelScale);					
+					m_alpha = m_alpha_norm*diag(1./kernelScale);
+					%m_alpha = m_alpha*diag(kernelScale);
 					% recover signal on whole graph
-					v_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
-					for iKernel = 1 : nKernel
-						Ki = obj.m_kernel(:,m_positions,iKernel); % kernel of the whole graph
-						v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
-					end
+					
+					
 					v_theta = [];
-					if obj.b_finishSingleKernel
+					if obj.b_estimateFreq
 						% select kernel with more weight
-						[~,main_kernel_ind] = max(sum(m_alpha.^2,1))
-						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
-						if isempty(obj.s_finishRegularizationParameter)
-							obj.s_finishRegularizationParameter = obj.s_regularizationParameter;
+						[norm_alpha, indices] = sort(sum(m_alpha.^2,1),'descend');
+						factor = 1;
+						if norm_alpha(1) > factor * norm_alpha(2)
+							main_kernel_ind = indices(1);
+						else
+							main_kernel_ind = NaN;
 						end
-						m_alpha = (m_main_kernel(m_positions,m_positions) + size(m_samples,1)*obj.s_finishRegularizationParameter*eye(size(m_samples,1)))\m_samples;
-						v_estimate = m_main_kernel(:,m_positions)*m_alpha;
 					end
+					
+					if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
+						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
+						% modify to do crossvalidation + ...
+						obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
+						v_estimate = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);						
+					else
+						v_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
+						for iKernel = 1 : nKernel
+							Ki = obj.m_kernel(:,m_positions,iKernel); % kernel of the whole graph
+							v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
+						end						
+					end
+					
 				case 'kernel superposition'
 					[m_alpha,v_theta]=  obj.estimateAlphaKernelSuperposition( m_samples, K_observed ) ;
 					% undo scaling
-		            v_theta = diag(1./kernelScale)*v_theta;
+					v_theta = diag(1./kernelScale)*v_theta;
 					% recover signal on whole graph
 					m_learnedKernel = obj.thetaToKernel(obj.m_kernel(:, m_positions, :),v_theta);
 					v_estimate = m_learnedKernel*m_alpha;
-					if obj.b_finishSingleKernel
+					if ~isempty(obj.singleKernelPostEstimator)
 						error('not implemented');
 					end
 					
 				otherwise
 					error('unrecognized property ch_type')
-			end
-			
-			
+            end		
 			
 		end
         
@@ -170,7 +198,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             A = NaN(S,S*nKernel);
             for iKernel = 1 : nKernel
                 Ki = m_sampledKernelMatrix(:,:,iKernel);
-                A(:, ((iKernel-1)*S + 1) : iKernel*S ) = mpower(Ki,1/2);
+                A(:, ((iKernel-1)*S + 1) : iKernel*S ) = real(mpower((Ki+Ki')/2,1/2));
             end
 % 			A = reshape(K, [size(K,1) size(K,2)*size(K,3)]);
             
@@ -189,6 +217,11 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             for iKernel = 1 : nKernel				
                 sqrtKi = A(:, ((iKernel-1)*S+1) : iKernel*S);
                 ri = r( ((iKernel-1)*S+1) : iKernel*S );
+% 
+% if rcond(sqrtKi)< 1e-17
+% 	keyboard
+% end
+	
                 m_alpha(:,iKernel) = real( sqrtKi \ ri );
 			end
 			
@@ -240,7 +273,9 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			
 		end
 		
-		
+		function N = getNumOfVertices(obj)
+            N = size(obj.m_kernel,1);
+        end
 		
 	end
 	

@@ -1,5 +1,4 @@
-function NMSE = Simulate( generator, sampler, ...
-    estimator, MONTE_CARLO, refSignal)
+function NMSE = Simulate( generator, sampler, estimator, MONTE_CARLO)
 % SIMULATE      simulate function estiamtion on graph
 % Input:
 %       generator       graph function generator matrix
@@ -19,16 +18,14 @@ COL = max( [size(generator,2), size(sampler,2), size(estimator,2)] );
 
 % simulation
 NMSE = NaN(ROW,COL);
-normRef2 = norm(refSignal)^2;
 for iRow = 1 : ROW
     for iCol = 1 : COL
-        m_estimate = MonteCarloSimulation( ...
+        NMSE(iRow, iCol) = MonteCarloSimulation( ...
             getObjectFromMat(generator,iRow, iCol), ...
             getObjectFromMat(sampler,iRow,iCol), ...
             getObjectFromMat(estimator, iRow, iCol), ...
             MONTE_CARLO);
-        NMSE(iRow, iCol) = norm(m_estimate - refSignal)^2 / normRef2;
-        
+
         if DEBUG
             fprintf('Simulation progress\t%3.1f%%\n', ...
                 100*(iCol+(iRow-1)*COL)/(ROW*COL) );
@@ -38,15 +35,18 @@ end
 
 end
 
-function m_estimate = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
-
-graphFunction = generator.realization();
-parfor iMonte = 1 : MONTE_CARLO
-    [m_samples, m_positions] = sampler.sample(graphFunction);
-    estimate(:, iMonte) = estimator.estimate(m_samples, m_positions);
+function NMSE = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
+% Monte Carlo simulation
+v_nmse = NaN(MONTE_CARLO,1);
+%parfor iMonte = 1:MONTE_CARLO
+parfor iMonte = 1:MONTE_CARLO
+    m_graphFunction = generator.realization();
+    [m_samples, m_positions] = sampler.sample(m_graphFunction);
+    m_estimate = estimator.estimate(m_samples, m_positions);
+    v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;
 end
 
-m_estimate = mean(estimate,2);
+NMSE = mean(v_nmse);
 
 end
 

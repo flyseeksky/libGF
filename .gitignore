@@ -1,6 +1,4 @@
 
-simulations/MultikernelSimulations_data/
-simulations/SemiParametricSimulations_data/
 *.m~
 *.asv
 *.pdf
