@@ -16,7 +16,11 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         s_beta; %positive regularization parameters0000......
         m_missingValuesIndicator;   %is a matrix with one if the corresponding entry in m_observed is
                                     %observed and 0 otherwise. If [] is used then assumed that all values observed
-    end
+	    m_constraintLaplacian; %indicator matrix if entry 1 the equivelant
+		                       %entry in the Laplacian is constrained to be
+		                       %zero must be offdiagonal elements
+							   
+	end
     methods
         function obj = GraphLearningSmoothSignalGraphGenerator(varargin)
             % Constructor
@@ -26,6 +30,7 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
         function [graph,m_estimated,v_objective] = realization(obj)
             %initialization
             m_missingValuesIndicator=obj.m_missingValuesIndicator;
+			m_constraintLaplacian=obj.m_constraintLaplacian;
             m_observed=obj.m_observed;
             s_alpha=obj.s_alpha;
             s_beta=obj.s_beta;
@@ -33,7 +38,10 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             
             if(isempty(m_missingValuesIndicator)) %#ok<*PROP>
                 m_missingValuesIndicator=ones(size(m_observed));
-            end
+			end
+			if(isempty(m_constraintLaplacian))
+				m_constraintLaplacian=zeros(size(m_observed,1));
+			end
             m_estimated=randn(size(m_observed));
             %m_dublication converts the vectorized form of lower triangular
             %part of L to the vectorized form of the full matrix
@@ -43,7 +51,8 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
             %alternating optimization
             for t=1:s_niter
                 m_laplacian=GraphLearningSmoothSignalGraphGenerator.graphLaplUpd(s_alpha,s_beta,m_estimated,m_dubplication);
-                m_estimated=GraphLearningSmoothSignalGraphGenerator.signalUpd(m_observed,m_laplacian,s_alpha,m_missingValuesIndicator);
+                m_laplacian(m_constraintLaplacian==1)=0;
+				m_estimated=GraphLearningSmoothSignalGraphGenerator.signalUpd(m_observed,m_laplacian,s_alpha,m_missingValuesIndicator);
                 %contains the objective values of the function
                 v_objective(t)=(norm(m_missingValuesIndicator.*(m_observed-m_estimated),'fro')^2)+s_alpha*trace((m_estimated)'*m_laplacian*(m_estimated))+s_beta*norm(m_laplacian,'fro')^2;
                 if(t>1)
