@@ -1429,6 +1429,105 @@ classdef MultikernelSimulations < simFunctionSet
 	end
 	
 	
+	methods
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% Real data simulation
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		function F = compute_fig_7000(obj,niter)
+			% define parameters
+			max_iter = 1000;     % max iteration for learning laplacian
+			alpha = 1;
+			beta = 10;			 % alpha, beta paramters for learning laplacian
+			S_vec = 10:10:60;	 % for creating uniform sampler
+			B_vec = [20 40 60 -1];    % for creating BL estimator
+			mu = 1e-3;           % regularization parameter for MK estimator
+			
+			%%
+			% read temperature dataset and create the graph
+			% However, if the graph is already exists, then skip the process
+			addpath ./libGF/datasets/
+			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset();
+			if exist('learnedLaplacian.mat', 'file') == 2
+				load learnedLaplacian.mat
+				m_adjacency = Graph.createAdjacencyFromLaplacian(L);
+				graph = Graph('m_adjacency',m_adjacency);
+			else
+				% learn laplacian
+				% use old tempearature to learn graph laplacian
+				%gl = GraphLearningSmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				[graph] = gl.realization();
+			end
+			
+			
+			%%
+			m_laplacian = graph.getLaplacian(); 
+				
+			%%
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',Inf);
+			sampler = sampler.replicate([],{},'s_numberOfSamples',num2cell(S_vec));		
+			%%			
+			% BL graph function estimator
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+			
+		
+			% 4. BL estimator with unknown frequency
+% 			bl_estimator_unknown_freq = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',-1);			
+% 			bl_estimator_unknown_freq.c_replicatedVerticallyAlong = {'ch_name','s_bandwidth'};
+			
+%%
+			% 5. MKL function estimators		    
+			sigma1_vec = linspace(0.1, 1.5 , 20);
+			sigma2_vec = [0.3 1];
+            kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma1_vec));
+			m_kernel = kG.getKernelMatrix();
+			mkl_estimator(1) = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',mu);
+			kG.h_r_inv = LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec);
+			mkl_estimator(2) = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',mu);
+			
+			kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma1_vec));
+			m_kernel = kG.getKernelMatrix();
+			mkl_estimator(3) = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',mu ,'ch_type','kernel superposition');
+			kG.h_r_inv = LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec);
+			m_kernel = kG.getKernelMatrix();
+			mkl_estimator(4) = MkrGraphFunctionEstimator('m_kernel',m_kernel,'s_regularizationParameter',mu ,'ch_type','kernel superposition');
+			
+			%mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
+			%mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+
+			est = [mkl_estimator';bl_estimator];
+			%%
+			% Simulation
+			for i = 1:size(Hn,2)
+				generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Hn(:,i));
+				mse{i} = Simulate(generator, sampler, est, niter);
+				%res = Simulator.simStatistic(niter,generator,sampler,est);
+				%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			end
+			
+			%%
+			nmse = zeros(size(mse{1}));
+			for i = 1:length(mse)
+				nmse = nmse + mse{i};
+			end
+			nmse = nmse / length(mse);
+			plot(S_vec, nmse','linewidth',2)
+			ylim([0 1.5])
+			legend({'bl B=20', 'bl B=40', 'bl B=60', 'bl B=cutoff', 'MK RKHS 20 kernels', 'MK RKHS 3 kernels', ...
+				'MK kernel 20 kernels', 'MK kernel 3 kernels'})
+			%%
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
+                'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',...
+				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
+			
+		end
+	end
+	
 	methods(Static)
 		
 		% =========================================================================
