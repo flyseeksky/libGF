@@ -920,15 +920,18 @@ classdef MultikernelSimulations < simFunctionSet
         %     the corresponding bandlimited kernels
         function F = compute_fig_3232(obj, niter)
 						
-            [N,p,SNR,sampleSize,bandwidth] = MultikernelSimulations.simulationSetting();
-            u_Vec = logspace(-6,0,50);
+            [~,p,~] = MultikernelSimulations.simulationSetting();
+            %u_Vec = logspace(-6,0,50);
+			SNR = 20;
+			sampleSize = 80;
+			N = 250;
             
 						
 			% 1. generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
 			graph = graphGenerator.realization();
             % 2. generate graph function
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',bandwidth);
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'ch_distribution','uniform');
 			functionGenerator.b_sortedSpectrum = 0;
 			functionGenerator.b_generateSameFunction = 0;
 			%m_graphFunction = functionGenerator.realization();
@@ -957,22 +960,24 @@ classdef MultikernelSimulations < simFunctionSet
             bandwidth_vec = 10:10:60;
             estimated_bandwidth = zeros(length(bandwidth_vec),niter);
             for iBand = 1:length(bandwidth_vec)
-                for iter = 1:niter
-                    functionGenerator.s_bandwidth = bandwidth_vec(iBand);
+				functionGenerator.s_bandwidth = bandwidth_vec(iBand);
+                for iter = 1:niter                    
                     v_graphFunction = functionGenerator.realization();
                     [m_samples, m_positions] = sampler.sample(v_graphFunction);
-                    [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimator.estimate(m_samples, m_positions);
+                    [~,~,~, main_kernel_ind] = estimator.estimate(m_samples, m_positions);
 					if isnan(main_kernel_ind)
+						disp('discarding realization');
 						estimated_bandwidth(iBand, iter) = NaN;
 					else
 						estimated_bandwidth(iBand, iter) = B_vec(main_kernel_ind);
 					end
                 end
                 MultikernelSimulations.printSimulationProgress(iBand, iter, length(bandwidth_vec), niter)
-            end
-            est_bandwidth = mean(estimated_bandwidth, 2, 'omitnan');
+			end
+			est_bandwidth_mean = mean(estimated_bandwidth, 2, 'omitnan');
+			est_bandwidth = abs(est_bandwidth_mean-bandwidth_vec');
             %mse = Simulate(generator, sampler, estimator, niter);
-			est_var = var(estimated_bandwidth', 'omitnan');
+			est_std = std(estimated_bandwidth', 'omitnan');
 			
 			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			% print the table into a tex file
@@ -985,14 +990,14 @@ classdef MultikernelSimulations < simFunctionSet
 			end
 			
 			% print mean
-			fprintf(fid, '\\\\\n\tmean\t');
+			fprintf(fid, '\\\\\n\tBIAS\t');
 			for i = 1:length(est_bandwidth)
 				fprintf(fid, ' & %2.1f', est_bandwidth(i));
 			end
-			fprintf(fid, '\\\\\n\tvar\t');
+			fprintf(fid, '\\\\\n\tSTD\t');
 			% print variance
-			for i = 1:length(est_var)
-				fprintf(fid, ' & %2.1f', est_var(i));
+			for i = 1:length(est_std)
+				fprintf(fid, ' & %2.1f', est_std(i));
 			end
 			fprintf(fid, '\\\\\n');
 			fprintf(fid, '\t\\hline\n');
@@ -1000,7 +1005,7 @@ classdef MultikernelSimulations < simFunctionSet
 			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			figure(32321)
 			plot(estimated_bandwidth')
-			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth'], ...
+			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth_mean'], ...
 				'xlab', 'experiment index', 'ylab', 'bandwidth', ...
                 'tit', sprintf('N=%d, p=%2.2f, S=%d, numOfKernels=%d', ...
                 N, p, sampleSize, length(B_vec)), ...

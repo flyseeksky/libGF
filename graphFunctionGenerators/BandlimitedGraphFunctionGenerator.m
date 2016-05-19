@@ -9,6 +9,8 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 	
 	properties
 		ch_name = 'Bandlimited';
+		ch_distribution = 'normal';
+		%    can be 'normal' or 'uniform'
 		s_bandwidth    % integer
 		
 		b_sortedSpectrum = 0;  % if 1, the entries of the Fourier transform 
@@ -54,11 +56,19 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
                 M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
 					m_B*sort(randn(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
 			else
-				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
-					m_B*(rand(obj.s_bandwidth,s_numberOfRealizations) + obj.s_mean);
+				switch obj.ch_distribution
+					case 'normal'
+						M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+							m_B*(randn(obj.s_bandwidth,s_numberOfRealizations));
+					case 'uniform'
+						M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
+							m_B*(rand(obj.s_bandwidth,s_numberOfRealizations));
+					otherwise
+						error('unrecognized distribution');
+				end
 				% normalize
-				M_graphFunction = M_graphFunction - mean(M_graphFunction);
-				M_graphFunction = M_graphFunction / norm(M_graphFunction);
+				%M_graphFunction = M_graphFunction - mean(M_graphFunction);
+				%M_graphFunction = M_graphFunction / norm(M_graphFunction);
 				%M_graphFunction = randn(obj.s_bandwidth,s_numberOfRealizations);
 			end
 				

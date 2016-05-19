@@ -140,7 +140,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					if obj.b_estimateFreq
 						% select kernel with more weight
 						[norm_alpha, indices] = sort(sum(m_alpha.^2,1),'descend');
-						factor = 1.5;
+						factor = 1;
 						if norm_alpha(1) > factor * norm_alpha(2)
 							main_kernel_ind = indices(1);
 						else
