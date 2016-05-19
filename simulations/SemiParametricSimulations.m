@@ -782,66 +782,7 @@ classdef SemiParametricSimulations < simFunctionSet
 		end
 		
 		
-	    %% Simulations from Narang et al, LOCALIZED ITERATIVE METHODS FOR 
-		% INTERPOLATION IN GRAPH STRUCTURED DATA, 2013
-		%
-		% We will code this here and then make a simulator
-		%
-		function F = compute_fig_4001(obj,niter)
-			
-			
-if 0			
-			 estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2);
-			
-			
-			% obtain data set
-			[t_T,v_range] = ReadMovieLensDataset.getTestTables();  % t_T is a s_userNum x s_itemNum x s_foldCrossvalidationNum
-			s_userNum = size(t_T,1);
-			%s_itemNum = size(t_T,2);
-			s_foldCrossvalidationNum = size(t_T,3);
-			
-			v_rmse = NaN(1,s_foldCrossvalidationNum);
-			
-%for s_CVInd = 1:s_foldCrossvalidationNum
-s_CVInd = 1;			
-			
-				m_training = ReadDataset.mergeDataMatrices(t_T(:,:,[1:s_CVInd-1 s_CVInd+1:s_foldCrossvalidationNum] ));
-				m_test = t_T(:,:,s_CVInd);
-				graph = Graph.constructGraphFromTable(m_training','cosine');
-save('dummy.mat')
-else
-load('dummy.mat')
-end
-				
-				% computation of RMSE
-				for s_userInd = s_userNum:-1:1
-					
-					v_training = m_training(s_userInd,:)';					
-					v_trainingEntries = find(~isnan(v_training));
-					v_trainingSamples = v_training(v_trainingEntries);
-					
-					v_test = m_test(s_userInd,:)';					
-					v_testEntries = find(~isnan(v_test));
-					v_testSamples = v_training(v_testEntries);
-					
-					% estimation
-					sideInfo.v_sampledEntries = v_trainingEntries;
-					sideInfo.v_wantedEntries = v_testEntries;
-					sideInfo.graph = graph;
-					estimate = estimator.estimate(v_trainingSamples,sideInfo);
-					
-					% error computation
-					v_squaredError(s_userInd) = norm( v_testSamples - estimate.v_wantedSamples )^2;
-					s_estimatedEntriesNum(s_userInd) = length( v_testEntries );
-					
-				end
-				v_rmse(s_CVInd) = sum( v_squaredError )/sum( s_estimatedEntriesNum );
-%end
-			
-			rmse = sqrt( mean(v_rmse) ) / (v_range(2)-v_range(1))
-			
-			F = [];
-		end
+
 		
 	end
 	

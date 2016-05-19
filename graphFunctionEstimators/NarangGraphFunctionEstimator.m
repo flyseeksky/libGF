@@ -19,10 +19,8 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 		
 		% parameters for Bilateral Link-Weight Adjustment
 		s_theta = 1; 
-		
-		% parameters for the regularization-based method
-		s_regularizationParameter;
-		
+		graph; % underlying graph
+				
 	end
 	
 	properties(Access = private) % precomputed properties for efficiency
@@ -54,8 +52,7 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			%                           indices of the desired vertices. If not
 			%                           defined, it is assumed that this field
 			%                           is 1:N.
-			%         sideInfo(i).graph: graph over which the signal has been
-			%                           sampled
+	
 			%
 			% Output:
 			% estimate
@@ -75,15 +72,14 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			assert( isa(sideInfo,'struct') );
 			assert( isfield(sideInfo,'v_sampledEntries') );
 			assert( isrow(sideInfo.v_sampledEntries') );
-			assert( isfield(sideInfo,'graph') );
-			s_numberOfVertices = sideInfo.graph.getNumberOfVertices(); % number of vertices
+			s_numberOfVertices = obj.graph.getNumberOfVertices(); % number of vertices
 			if  ~isfield(sideInfo,'v_wantedEntries') 
 				sideInfo.v_wantedEntries = (1:s_numberOfVertices)';
 			end
 			assert( isrow(sideInfo.v_wantedEntries') );
 			
 			% compute subgraph with sampled and wanted vertices
-			m_graphAdjacency = sideInfo.graph.m_adjacency;
+			m_graphAdjacency = obj.graph.m_adjacency;
 			v_graphIndices = [sideInfo.v_sampledEntries;sideInfo.v_wantedEntries];
 			m_subgraphAdjacency = m_graphAdjacency( v_graphIndices , v_graphIndices );
 			subgraph = Graph('m_adjacency',m_subgraphAdjacency);			
@@ -117,7 +113,9 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			
 		end
 		
-		
+		function obj = prepareForGraph(obj,graph_now)
+			obj.graph = graph_now;			
+		end
 		
 		function subsignal = estimateSubsignal(obj,graph, v_sampledEntries , v_samples , v_wantedEntries )
 			
@@ -138,6 +136,11 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 					error('unrecognized option ');
 			end
 			subsignal = signal(v_wantedEntries);
+		end
+		
+		function N = getNumOfVertices(obj)
+			%N = size(obj.m_laplacian,1);
+			N = [];
 		end
 		
 		

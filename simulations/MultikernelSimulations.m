@@ -1390,6 +1390,41 @@ classdef MultikernelSimulations < simFunctionSet
 		
 		
 		
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  4. simulations with MKL on real data for recommender systems
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		
+		% 1) Simulations from Narang et al, LOCALIZED ITERATIVE METHODS FOR 
+		% INTERPOLATION IN GRAPH STRUCTURED DATA, 2013
+		
+		% We will code this here and then make a simulator
+		function F = compute_fig_4100(obj,niter)
+			sigma2 = .5;
+			v_regPar = 1e-2;
+			
+			narang_estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2);			
+			
+	% set handle to construct kernel mat
+	        
+			
+			kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2));
+			h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+			ridge_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',v_regPar,'h_kernelMat',h_kernelMat);
+			
+			estimator = [narang_estimator;ridge_estimator];
+			[v_CVSets,v_range] = ReadMovieLensDataset.getCVSets();
+			graphConstructor = @(table) Graph.constructGraphFromTable(table,'cosine');
+			
+			mse = RecommenderSystemsSimulator.simulateDataset( v_CVSets , graphConstructor, estimator );
+			
+			rmse = sqrt( mse ) / (v_range(2)-v_range(1))
+			
+			F = [];
+		end
+		
+		
+		
 		
 	end
 	
