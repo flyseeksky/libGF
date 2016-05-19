@@ -18,7 +18,7 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 				
 		
 		% parameters for Bilateral Link-Weight Adjustment
-		s_theta = 1; 
+		s_theta = 3; 
 		graph; % underlying graph
 				
 	end
@@ -85,10 +85,28 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			subgraph = Graph('m_adjacency',m_subgraphAdjacency);			
 			
 			% nearest neighbors graph
-		%subgraph = subgraph.nearestNeighborsSubgraph(30);
+		    %subgraph = subgraph.nearestNeighborsSubgraph(30);
 			
 			% update weights			
-		%subgraph = obj.bilateralLinkWeightAdjustment( subgraph , 1:length(sideInfo.v_sampledEntries) , m_samples , obj.s_theta ); 
+			%subgraph = obj.bilateralLinkWeightAdjustment( subgraph , 1:length(sideInfo.v_sampledEntries) , m_samples , obj.s_theta );
+%subgraph = obj.graph;
+debug = 0;
+if debug
+	[V,D] = eig(subgraph.getNormalizedLaplacian);
+	N = size(V,1);
+	B = 6;
+	S = 10;
+	alpha = randn(B,1);
+	f = V(:,1:B)*alpha;
+	
+	f_hat = obj.estimateSubsignal(subgraph, (1:S)' , f(1:S) , 1:N );
+	
+	nf = norm(f-f_hat)
+	
+	
+end
+			
+			
 			
 			% estimate subsignal			
 			estimate.v_wantedSamples = obj.estimateSubsignal(subgraph, (1:length(sideInfo.v_sampledEntries))' , m_samples , (1+length(sideInfo.v_sampledEntries):length(v_graphIndices))' );
@@ -118,7 +136,7 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 		end
 		
 		function subsignal = estimateSubsignal(obj,graph, v_sampledEntries , v_samples , v_wantedEntries )
-			
+
 			switch obj.ch_type
 				case 'RBM'
 					% Regularization-based reconstruction from [narang2013localized]										
@@ -131,6 +149,8 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 				case 'LSR'
 					% LS reconstruction from [narang2013localized]
 					estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getNormalizedLaplacian,'s_bandwidth',-1);
+%estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',-1);					
+%estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getNormalizedLaplacian,'s_bandwidth',6);					
 					signal = estimator.estimate(v_samples,v_sampledEntries);
 				otherwise
 					error('unrecognized option ');
@@ -160,16 +180,27 @@ classdef NarangGraphFunctionEstimator < GraphFunctionEstimator
 			%
 			% output graph is a modified graph using [narang2013structured, eq
 			% (10)]
-			%
+% 			%
+% 			W = graph.m_adjacency;
+%             for row = 1 : size(W,1)
+%                 for col = 1 : size(W,1)
+%                     if W(row, col) > 0
+% 						
+%                         W(row, col) = W(row,col) * exp( - (v_samples(row) - v_samples(col)  ) / s_theta );
+%                     end
+%                 end
+% 			end
+			
 			W = graph.m_adjacency;
-            for row = 1 : size(W,1)
-                for col = 1 : size(W,1)
-                    if W(row, col) > 0
-                        W(row, col) = W(row,col) * exp( - (v_samples(row) - ...
-                            v_samples(col) ) / s_theta );
+            for ind1 = 1 : length(v_entries)
+                for ind2 = ind1+1 : length(v_entries)
+                    if W(v_entries(ind1), v_entries(ind2)) > 0						
+                        W(v_entries(ind1), v_entries(ind2)) = W(v_entries(ind1), v_entries(ind2)) * exp( - (v_samples(ind1) - v_samples(ind2)  )^2 / s_theta^2 );
+						W(v_entries(ind2), v_entries(ind1)) = W(v_entries(ind2), v_entries(ind1)) * exp( - (v_samples(ind1) - v_samples(ind2)  )^2 / s_theta^2 );
                     end
                 end
-            end
+			end
+			% 
             graph = Graph('m_adjacency', W);				
         end
 

@@ -48,7 +48,8 @@ classdef LaplacianKernel < Parameter
 		end
 		
 		function m_kernel = getNewKernelMatrix(obj,graph)
-			obj.m_laplacian = graph.getLaplacian();
+%obj.m_laplacian = graph.getLaplacian();
+obj.m_laplacian = graph.getNormalizedLaplacian();			
 			m_kernel = obj.getKernelMatrix;
 		end
 		

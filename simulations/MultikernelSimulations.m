@@ -1387,31 +1387,68 @@ classdef MultikernelSimulations < simFunctionSet
 		% 1) Simulations from Narang et al, LOCALIZED ITERATIVE METHODS FOR 
 		% INTERPOLATION IN GRAPH STRUCTURED DATA, 2013
 		
-		% We will code this here and then make a simulator
-		function F = compute_fig_4100(obj,niter)
-			sigma2 = .5;
-			v_regPar = 1e-2;
+		% 
+		function F = compute_fig_4101(obj,niter)
+						
+			narang_estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2,'ch_type','LSR');			
+	
+			s_case = 0;
+			switch s_case
+				case 0
+					v_sigma2 = .7;
+					%kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(v_sigma2));
+					kG = DiffusionGraphKernel('s_sigma',v_sigma2);
+					h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+					mkl_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',1e-1,'h_kernelMat',h_kernelMat);
+					mkl_estimator = mkl_estimator.replicate('s_regularizationParameter',num2cell([1e10 10.^(-10:2:6)]),'',[]);
+					%mkl_estimator = mkl_estimator.replicate('s_regularizationParameter',num2cell(10.^(10)),'',[]);
+				
+				case 1
+					v_sigma2 = sqrt(.2:.2:1);
+					kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(v_sigma2));
+					h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+					mkl_estimator = MkrGraphFunctionEstimator('s_regularizationParameter',1e-1,'ch_type','kernel superposition','h_kernelMat',h_kernelMat);
+					mkl_estimator = mkl_estimator.replicate('s_regularizationParameter',num2cell([1e-3 1e-2 1e-1 1 10]),'',[]);
+				case 2
+					%c_regPar = {sqrt(linspace(.2,1.2,4)),sqrt(linspace(.2,1.2,8)),sqrt(linspace(.2,1.2,12)),sqrt(.2:.2:1)};
+					c_regPar = {sqrt(linspace(.2,1.2,12))};
+					for k = 1:length(c_regPar)
+						kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(c_regPar{k}));
+						h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+						mkl_estimator(k,1) = MkrGraphFunctionEstimator('s_regularizationParameter',1e-1,'ch_type','kernel superposition','h_kernelMat',h_kernelMat);
+					end
+				case 3					
+					v_sigma2 = sqrt(linspace(.2,1.2,12));
+					kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(v_sigma2));
+					h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+					
+					mkl_estimator(1,1) = MkrGraphFunctionEstimator('s_regularizationParameter',1e-1,'h_kernelMat',h_kernelMat,'ch_type','RKHS superposition');
+					mkl_estimator(2,1) = MkrGraphFunctionEstimator('s_regularizationParameter',1e-1,'h_kernelMat',h_kernelMat,'ch_type','kernel superposition');
+				case 4
+					v_sigma2 = sqrt(linspace(.2,1.2,12));
+					kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(v_sigma2));
+					h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
+					mkl_estimator = MkrGraphFunctionEstimator('s_regularizationParameter',1e-1,'ch_type','RKHS superposition','h_kernelMat',h_kernelMat);
+					mkl_estimator = mkl_estimator.replicate('s_regularizationParameter',num2cell([1e-3 1e-2 1e-1 1 10]),'',[]);
+			end
+            
 			
-			narang_estimator = NarangGraphFunctionEstimator('s_regularizationParameter',1e-2);			
+			%ridge_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',v_regPar,'h_kernelMat',h_kernelMat);
 			
-	% set handle to construct kernel mat
-	        
+			%estimator = [narang_estimator;ridge_estimator];
+			estimator = [narang_estimator;mkl_estimator];
+			%estimator = narang_estimator;
 			
-			kG = LaplacianKernel('h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2));
-			h_kernelMat = @(graph) kG.getNewKernelMatrix(graph);
-			ridge_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',v_regPar,'h_kernelMat',h_kernelMat);
-			
-			estimator = [narang_estimator;ridge_estimator];
 			[v_CVSets,v_range] = ReadMovieLensDataset.getCVSets();
 			graphConstructor = @(table) Graph.constructGraphFromTable(table,'cosine');
 			
-			mse = RecommenderSystemsSimulator.simulateDataset( v_CVSets , graphConstructor, estimator );
+			s_case
+			mse = RecommenderSystemsSimulator.simulateDataset( v_CVSets , graphConstructor, estimator )
 			
 			rmse = sqrt( mse ) / (v_range(2)-v_range(1))
-			
+			%save('1.mat')
 			F = [];
 		end
-		
 		
 		
 		
