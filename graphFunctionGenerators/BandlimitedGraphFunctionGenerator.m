@@ -55,7 +55,10 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 					m_B*sort(randn(obj.s_bandwidth,s_numberOfRealizations),1,'descend');
 			else
 				M_graphFunction = sqrt(size(m_B,1)/obj.s_bandwidth) * ...
-					m_B*randn(obj.s_bandwidth,s_numberOfRealizations);
+					m_B*(rand(obj.s_bandwidth,s_numberOfRealizations) + obj.s_mean);
+				% normalize
+				M_graphFunction = M_graphFunction - mean(M_graphFunction);
+				M_graphFunction = M_graphFunction / norm(M_graphFunction);
 				%M_graphFunction = randn(obj.s_bandwidth,s_numberOfRealizations);
 			end
 				

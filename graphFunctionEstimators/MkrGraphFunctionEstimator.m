@@ -117,6 +117,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			kernelScale = NaN(nKernel,1); 
 			for iKernel = 1 : size(K_observed,3) 		
 				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
+				%kernelScale(iKernel) = sum(sum(abs(K_observed(:,:,iKernel))))/N;
 				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
             end
             
@@ -136,13 +137,20 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					
 					
 					v_theta = [];
-					if obj.b_estimateFreq || (~isempty(obj.singleKernelPostEstimator)  )
+					if obj.b_estimateFreq
 						% select kernel with more weight
-						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
-						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);						
+						[norm_alpha, indices] = sort(sum(m_alpha.^2,1),'descend');
+						factor = 1.5;
+						if norm_alpha(1) > factor * norm_alpha(2)
+							main_kernel_ind = indices(1);
+						else
+							main_kernel_ind = NaN;
+						end
 					end
 					
 					if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
+						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
 						% modify to do crossvalidation + ...
 						obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
 						v_estimate = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);						
