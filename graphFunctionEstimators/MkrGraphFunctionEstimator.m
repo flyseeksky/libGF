@@ -82,9 +82,13 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
             obj@KernelGraphFunctionEstimator(varargin{:});
         end
         
+
         function [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimate(obj, m_samples, sideInfo)
 			% See header of GraphFunctionEstimator@estimate 		
 			%
+% =======
+%         function [v_estimate, m_alpha_norm , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
+% >>>>>>> 9e4b127124bd4b15843c52f384da625c5ab101d9
 			% v_estimate:     N x 1 vector with the signal estimate
 			%
 			% if obj.ch_type == 'RKHS superposition', then 
@@ -125,6 +129,7 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
 			kernelScale = NaN(nKernel,1); 
 			for iKernel = 1 : size(K_observed,3) 		
 				kernelScale(iKernel) = trace(K_observed(:,:,iKernel))/N;
+				%kernelScale(iKernel) = sum(sum(abs(K_observed(:,:,iKernel))))/N;
 				K_observed(:,:,iKernel) = K_observed(:,:,iKernel)/kernelScale(iKernel);
             end
             
@@ -136,21 +141,28 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
 			% Estimation of alpha
 			switch obj.ch_type
 				case 'RKHS superposition' %juan's
-					m_alpha =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );
+					m_alpha_norm =  obj.estimateAlphaRKHSSuperposition( m_samples, K_observed );
 					% undo scaling
-					m_alpha = m_alpha*diag(1./kernelScale);
+					m_alpha = m_alpha_norm*diag(1./kernelScale);
 					%m_alpha = m_alpha*diag(kernelScale);
 					% recover signal on whole graph
 					
 					
 					v_theta = [];
-					if obj.b_estimateFreq || (~isempty(obj.singleKernelPostEstimator)  )
+					if obj.b_estimateFreq
 						% select kernel with more weight
-						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
-						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);						
+						[norm_alpha, indices] = sort(sum(m_alpha.^2,1),'descend');
+						factor = 1;
+						if norm_alpha(1) > factor * norm_alpha(2)
+							main_kernel_ind = indices(1);
+						else
+							main_kernel_ind = NaN;
+						end
 					end
 					
 					if ~isempty(obj.singleKernelPostEstimator)    % second stage single kernel regression
+						[~,main_kernel_ind] = max(sum(m_alpha.^2,1));
+						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
 						% modify to do crossvalidation + ...
 						obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
 						v_estimate_vec = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);						

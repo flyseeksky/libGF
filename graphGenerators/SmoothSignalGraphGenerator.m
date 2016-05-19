@@ -19,12 +19,12 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
     properties(Constant)
         ch_name = 'Learn Graph from signals';
 		DEBUG = true; % set this paramter to true for debug information
-        CVX = true;  % set CVX=true to use cvx for solving this problem
+        CVX = false;  % set CVX=true to use cvx for solving this problem
     end
     
     properties
         m_observed;             % observed signals on some graph
-        s_maxIter = 1000;       % maximum number of iterations
+        s_niter = 1000;       % maximum number of iterations
 		s_alpha = 1;            % regularization parameter: alpha*tr(Y'LY)
         s_beta = 1;           % regularization: beta * norm(Y,'fro')^2
     end
@@ -62,7 +62,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
             Aeq = m_A; beq = zeros(N+1,1); beq(end) = N;
 			
             %history = NaN(obj.s_maxIter, 1);    % record objective value
-			for iter = 1 : obj.s_maxIter
+			for iter = 1 : obj.s_niter
                 Y_old = Y;
                 
                 % 1. minimization wrt L
@@ -89,7 +89,7 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
                 % print debug information
                 history(iter) = norm(Y - Y_old, 'fro')/norm(Y_old,'fro');
                 if obj.DEBUG
-					fprintf('Iterations:%2d \tobjective value: %3.2f\n',...
+					fprintf('Iterations:%2d \tobjective value: %f\n',...
 						iter, history(iter) );
 				end
                 
