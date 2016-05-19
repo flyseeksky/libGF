@@ -33,8 +33,15 @@ classdef DiffusionGraphKernel < GraphKernel
         v_eigenvalues(v_eigenvalues == 0) = eps;
         m_kernels=m_eigenvectors*diag(1./(exp(obj.s_sigma^2*v_eigenvalues/2)))*m_eigenvectors';
        
-       end
+	   end
         
+	   
+	   function m_kernel = getNewKernelMatrix(obj,graph)
+obj.m_laplacian = graph.getLaplacian();
+%obj.m_laplacian = graph.getNormalizedLaplacian();			
+			m_kernel = obj.generateKernelMatrix();
+		end
+	   
     end
     
 end

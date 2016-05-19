@@ -69,7 +69,7 @@ classdef GraphFunctionEstimator < Parameter
 	
 	methods(Abstract)
 				
-		estimate = estimate(obj,m_samples,sideInfo,m_wantedEntries);			
+		estimate = estimate(obj,m_samples,sideInfo);			
 		%
 		% Input:
 		% M_SAMPLES                 

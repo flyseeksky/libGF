@@ -1,4 +1,4 @@
-classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
+classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
@@ -9,7 +9,7 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     
     properties
 		ch_name = 'Multi-kernel RR';
-        m_kernel   %  N x N x P tensor, where 
+        %m_kernel   %  N x N x P tensor, where 
 		           %       N: number of vertices
 				   %       P: number of kernels
         %s_regularizationParameter
@@ -79,10 +79,16 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     methods
 		
         function obj = MkrGraphFunctionEstimator(varargin)  % constructor
-            obj@GraphFunctionEstimator(varargin{:});
+            obj@KernelGraphFunctionEstimator(varargin{:});
         end
         
-        function [v_estimate, m_alpha_norm , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
+
+        function [v_estimate, m_alpha , v_theta, main_kernel_ind] = estimate(obj, m_samples, sideInfo)
+			% See header of GraphFunctionEstimator@estimate 		
+			%
+% =======
+%         function [v_estimate, m_alpha_norm , v_theta, main_kernel_ind] = estimate(obj, m_samples, m_positions)
+% >>>>>>> 9e4b127124bd4b15843c52f384da625c5ab101d9
 			% v_estimate:     N x 1 vector with the signal estimate
 			%
 			% if obj.ch_type == 'RKHS superposition', then 
@@ -97,11 +103,17 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 			%    v_theta:        nKernels x 1 vector with the weight of
 			%                    each kernel
 			
+			if isstruct(sideInfo)
+				m_positions = sideInfo.v_sampledEntries;
+			else
+				m_positions = sideInfo;
+			end
+			
 			% Initial checks
             if isempty(obj.m_kernel) || isempty(obj.s_regularizationParameter)
                 error('MkrGraphFunctionEstimator:notEnoughInfo',...
                     'Kernel and mu not set');
-            elseif ~isequaln(size(m_samples),size(m_positions))
+            elseif ~isequaln(size(m_samples),size(m_positions))				
                 error('MkrGraphFunctionEstimator:inconsistentParameter',...
                     'size of m_positions and m_samples not the same');
             elseif max(m_positions(:)) > size(obj.m_kernel,1)
@@ -153,12 +165,12 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 						m_main_kernel = obj.m_kernel(:,:,main_kernel_ind);
 						% modify to do crossvalidation + ...
 						obj.singleKernelPostEstimator.m_kernel = m_main_kernel;
-						v_estimate = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);						
+						v_estimate_vec = obj.singleKernelPostEstimator.estimate(m_samples, m_positions);						
 					else
-						v_estimate = zeros(N,1);  % y = \sum K_i * alpha_i
+						v_estimate_vec = zeros(N,1);  % y = \sum K_i * alpha_i
 						for iKernel = 1 : nKernel
 							Ki = obj.m_kernel(:,m_positions,iKernel); % kernel of the whole graph
-							v_estimate = v_estimate + Ki*m_alpha(:,iKernel);
+							v_estimate_vec = v_estimate_vec + Ki*m_alpha(:,iKernel);
 						end						
 					end
 					
@@ -168,14 +180,23 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
 					v_theta = diag(1./kernelScale)*v_theta;
 					% recover signal on whole graph
 					m_learnedKernel = obj.thetaToKernel(obj.m_kernel(:, m_positions, :),v_theta);
-					v_estimate = m_learnedKernel*m_alpha;
+					v_estimate_vec = m_learnedKernel*m_alpha;
 					if ~isempty(obj.singleKernelPostEstimator)
 						error('not implemented');
 					end
 					
 				otherwise
 					error('unrecognized property ch_type')
-            end		
+			
+			end
+			
+			% selecting only the requested samples
+			if isstruct(sideInfo)
+				v_estimate.v_wantedSamples = v_estimate_vec(sideInfo.v_wantedEntries);
+			else
+				v_estimate = v_estimate_vec;
+			end
+			
 			
 		end
         

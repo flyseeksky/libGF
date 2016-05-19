@@ -26,7 +26,7 @@ classdef Graph
 			d_m12(v_degrees == 0 ) = 0;
 			D_m12 = diag(d_m12);
 			m_L = eye(length(v_degrees)) - D_m12*obj.m_adjacency*D_m12;
-		
+		    m_L = (m_L+m_L')/2;
 			if sum(sum(isnan(m_L)))
 				keyboard
 			end
@@ -41,7 +41,16 @@ classdef Graph
 			m_L = obj.getLaplacian;
 			[m_V,~] = eig(m_L);
 		end
-				
+			
+		function m_V = getNormalizedLaplacianEigenvectors(obj)									
+			% m_V     Matrix whose columns are the eigenvectors of the
+			%         Laplacian sorted in ascending order of eigenvalue
+			
+			m_L = obj.getNormalizedLaplacian;
+			[m_V,~] = eig(m_L);
+
+		end
+		
 		function s_n = getNumberOfVertices(obj)
 			s_n = size(obj.m_adjacency,1);			
         end
@@ -147,25 +156,41 @@ classdef Graph
 			assert(size(v_f,1) == size(obj.m_adjacency,1));
 			v_f_tilde = obj.getLaplacianEigenvectors'*v_f;
 		end
+		
+		function plotFourierTransform( obj , v_f )
+			assert(size(v_f,1) == size(obj.m_adjacency,1));
+			v_f_tilde_unnormalized = obj.getLaplacianEigenvectors'*v_f;
+			v_f_tilde_normalized = obj.getNormalizedLaplacianEigenvectors'*v_f;
+			
+% 			subplot(2,1,1)
+% 			plot(v_f_tilde_unnormalized); title('Unnormalized Laplacian')
+% 			subplot(2,1,2)
+% 			plot(v_f_tilde_normalized); title('normalized Laplacian')
+
+            plot(abs([v_f_tilde_unnormalized v_f_tilde_normalized]));
+			legend('unnormalized','normalized');
+
+		end
+		
 						
 		function graph = nearestNeighborsSubgraph(obj,s_neighborsNum)
 			% delete all but the s_neighborsNum strongest links of each
 			% edge
-            W = obj.m_adjacency;
-            
+            W = triu(obj.m_adjacency);
+            %rowIndices = 1 : size(W,1);
+			
             for row = 1:size(W,1)
                 % get the k-largest values and its position
                 [sortedValues, sortedIndices] = sort(W(row,:),'descend');
-                maxValues = sortedValues(1:s_neighborsNum);
-                maxValueIndices = sortedIndices(1:s_neighborsNum);
+                %maxValues = sortedValues(1:s_neighborsNum);
+                minValueIndices = sortedIndices(s_neighborsNum+1:end);
                 
-                % update W
-                rowIndices = 1 : size(W,1);
-                rowIndices(maxValueIndices) = 0;
-                W(row, logical(rowIndices)) = 0;
+                % update W                
+                W(row, minValueIndices ) = 0;
             end
 			
-            W = W .* logical(W');
+            %W = W .* logical(W');
+			W = W + W';
             graph = Graph('m_adjacency', W);
 		end
 		
