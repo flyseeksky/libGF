@@ -123,7 +123,9 @@ classdef SemiParametricSimulations < simFunctionSet
 			% define graph
 			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset;
 			%tic
-			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_missingValuesIndicator',[]);
+			m_constraintLaplacian=zeros(size(Ho,1));
+			m_constraintLaplacian(4:15,1)=1;
+			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian,'s_dont_estimate_the_signal',1);
 			%toc
 			
 			% tic
@@ -194,6 +196,17 @@ classdef SemiParametricSimulations < simFunctionSet
 
 		function F = compute_fig_1002(obj,niter)
 			F = obj.load_F_structure(1001);
+			F.ylimit=[0 1];
+			F.xlimit=[10 89];
+			F.styles = {'-','--','-o','-x','--^'};
+			F.pos=[680 729 509 249];
+			F.leg={strcat('Bandlimited  ',sprintf(' W=10')),strcat('Bandlimited',sprintf(' W=20')),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'};
+			
+			F.leg_pos = 'north';      % it can be 'northwest',
+			%F.leg_pos_vec = [0.547 0.673 0.182 0.114];
+		end
+		function F = compute_fig_1012(obj,niter)
+			F = obj.load_F_structure(1011);
 			F.ylimit=[0 1];
 			F.xlimit=[10 89];
 			F.styles = {'-','--','-o','-x','--^'};
