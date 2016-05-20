@@ -9,6 +9,7 @@ classdef AirportGraphGenerator < GraphGenerator
     
     properties(Constant)
         ch_name = 'Airport';
+        THRESHOLD = 80;       % delay more than 80min is outlier
     end
     
     properties
@@ -40,12 +41,12 @@ classdef AirportGraphGenerator < GraphGenerator
                 obj = obj.removeNanRows();
                 
                 %% average all fights in the same day and the same date
-                [depDelayMatrix, arrDelayMatrix] = obj.getDelayTable();
+                [depDelayMatrix, arrDelayMatrix, listOfAirport] = obj.getDelayTable();
                 %% create adjacency matrix
-                
+                listOfDay = obj.v_listOfDay;
+                adjacency = obj.createAdjacencyMatrix(listOfAirport, listOfDay);
+                %%
                 % create graph
-                adjacency = AirportGraphGenerator.createAdjacencyMatrix(obj.airportTable);
-                graph = Graph('m_adjacency',adjacency);
         end
     end
     
@@ -70,7 +71,7 @@ classdef AirportGraphGenerator < GraphGenerator
     end
     
     methods
-        function [depDelayMatrix, arrDelayMatrix] = getDelayTable(obj)
+        function [depDelayMatrix, arrDelayMatrix, listOfAirport] = getDelayTable(obj)
             % get the two tables from raw data
             % depDelayTable:
             %       each entry contains the average departure delay of 
@@ -91,10 +92,36 @@ classdef AirportGraphGenerator < GraphGenerator
                     % create a sub-table that contains rows of that airport
                     airportDayTable = dayTable( dayTable.ORIGIN_AIRPORT_ID == ...
                         listOfAirport(airport) ,:);
-
-                        depDelayMatrix(airport, day) = mean(airportDayTable.DEP_DELAY);
-                        arrDelayMatrix(airport, day) = mean(airportDayTable.ARR_DELAY);
+                        outlierInd = abs(airportDayTable.DEP_DELAY) > obj.THRESHOLD | ...
+                            abs(airportDayTable.DEP_DELAY) > obj.THRESHOLD;
+                        depDelayMatrix(airport, day) = mean(airportDayTable.DEP_DELAY(~outlierInd));
+                        arrDelayMatrix(airport, day) = mean(airportDayTable.ARR_DELAY(~outlierInd));
                 end
+            end
+            
+            % remove airports that contains NaN
+            mask = isnan(depDelayMatrix) | isnan(arrDelayMatrix);
+            airportInd = ~(sum(mask, 2) >= 1);
+            depDelayMatrix = depDelayMatrix(airportInd,:);
+            arrDelayMatrix = arrDelayMatrix(airportInd,:);
+            listOfAirport = listOfAirport(airportInd);
+        end
+        
+        function A = createAdjacencyMatrix(obj, listOfAirport, listOfDay)
+            A = zeros(length(listOfAirport), length(listOfAirport), length(listOfDay));
+            for slice = 1 : length(listOfDay)
+                day = listOfDay(slice);
+                subDayTab = obj.airportTable( obj.airportTable.FL_DATE == day,: );
+                for row = 1 : length(listOfAirport)
+                    airportOrgID = listOfAirport(row);
+                    subOrgTab = subDayTab( subDayTab.ORIGIN_AIRPORT_ID == airportOrgID,: );
+                    for col = row+1 : length(listOfAirport)
+                        airportDstID = listOfAirport(col);
+                        %subOrgDstTab = subOrgTab(obj.airportTable.DEST_AIRPORT_ID == airportOrgID);
+                        A(row,col,slice) = sum(subOrgTab.DEST_AIRPORT_ID == airportDstID);
+                    end
+                end
+                A(:,:,slice) = A(:,:,slice) + A(:,:,slice)';
             end
         end
         
@@ -126,7 +153,7 @@ classdef AirportGraphGenerator < GraphGenerator
     
     methods(Static)
        
-        function A = createAdjacencyMatrix(T)
+        function A = createAdjacencyMatrixDepreciated(T)
             % create Laplacian matrix from table T
             % T is a table with each row denoting flight and delays
             % Node of graph is all the aiports
