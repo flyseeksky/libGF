@@ -399,6 +399,68 @@ classdef MultikernelSimulations < simFunctionSet
                 'leg',legendStr, 'ylimit', [0 1.5], ...
                 'xlab','sample size','ylab','Normalized MSE',...
                 'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, signal bandwidth = %d', N, p, mu, B));		  
+        end
+        
+        % Figure NMSE vs bandwidth
+        %    comparing single kernel and multikernel
+        %    
+        function F = compute_fig_3111(obj,niter)
+            %% set parameter
+			[N,p,SNR,~,~] = MultikernelSimulations.simulationSetting();
+            N = 250;
+            sampleSize = 100;
+            mu = 1e-4;
+            bandwidthVec = 10:10:100;
+						
+			%% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            %% generate signal on this graph
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
+            functionGenerator.b_generateSameFunction = 1;
+            generator = functionGenerator.replicate([], {}, 's_bandwidth', num2cell(bandwidthVec));
+			
+			%% generate Kernel matrix
+            L = graph.getLaplacian();
+            %sigmaCell = { sqrt(0.01), sqrt(0.1), sqrt(0.5), sqrt(1), sqrt(linspace(0.01, 1, 10)), sqrt(linspace(0.01, 1, 30)) };
+            sigmaCell = { sqrt(0.2), sqrt(0.4), sqrt(0.6), sqrt(.8), sqrt(1), (linspace(sqrt(0.2), sqrt(1), 10)), sqrt(linspace(0.2, 1, 10)) };
+			%sigmaArray = sqrt(linspace(0.01, 1.5, 30));
+            %sigma = 0.8;
+            for i = 1:length(sigmaCell)
+                kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaCell{i}));
+                m_kernel{i} = kG.getKernelMatrix();
+            end
+            
+			%% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples', sampleSize);
+			
+			%% define function estimator
+            est = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'ch_type', 'kernel superposition');
+            est = est.replicate('m_kernel', m_kernel, [], {});
+            %estimator = [];
+            for i = 1 : length(est)
+                if length(sigmaCell{i}) == 1
+                    est(i).s_sigma = (sigmaCell{i});
+                end
+                est(i).c_replicatedVerticallyAlong = {'legendString'};
+                %estimator = [estimator; est(i).replicate('ch_type', {'RKHS superposition','kernel superposition'}, [], {}) ];
+            end
+			
+%             % to test reg par
+%             v_mu = 10.^(-4);
+%             est_mu = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'ch_type', 'kernel superposition','m_kernel',m_kernel{end});
+%             est_mu = est_mu.replicate('s_regularizationParameter', num2cell(v_mu), [], {});
+%             est = [est;est_mu];
+%             
+			%% Simulation
+            mse = Simulate(generator, sampler, est, niter);
+            
+            %% Representation
+            F = F_figure('X', bandwidthVec,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler, est),...
+                'xlab','bandwidth','ylab','Normalized MSE',...
+                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, S = %d', N, p, mu, sampleSize));		  
 		end
 		
 		% Figure: ||alpha_i|| vs \mu
@@ -1468,7 +1530,7 @@ classdef MultikernelSimulations < simFunctionSet
 	
 	methods
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		% Real data simulation
+		% Real data simulation on Swiss temperature dataset
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		function F = compute_fig_7000(obj,niter)
 			% define parameters
