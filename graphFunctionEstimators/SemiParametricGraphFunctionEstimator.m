@@ -88,7 +88,9 @@ classdef SemiParametricGraphFunctionEstimator< GraphFunctionEstimator
             
           
         end
-        
+        function N = getNumOfVertices(obj)
+            N = size(obj.m_kernels,1);
+        end
     end
     
 end
