@@ -1503,7 +1503,7 @@ classdef MultikernelSimulations < simFunctionSet
 			alpha = 1;
 			beta = 10;			      % alpha, beta paramters for learning laplacian
 			S_vec = 10:5:60;		  % for creating uniform sampler
-			B_vec = [20 40 60 -1];    % for creating BL estimator
+			B_vec = [2 4 6 -1];    % for creating BL estimator
 			mu = 1e-4;                % regularization parameter for MK estimator
 			SNR = Inf;
 			
@@ -1537,7 +1537,7 @@ classdef MultikernelSimulations < simFunctionSet
 			
 			% MKL function estimators
 			sigma1_vec = sqrt(linspace(1, 20 , 10));
-			sigma2_vec = sqrt([0.2 3]);
+			sigma2_vec = sqrt([1 20]);
             kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma1_vec));
 			m_kernel{1} = kG.getKernelMatrix();
 			kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec));
