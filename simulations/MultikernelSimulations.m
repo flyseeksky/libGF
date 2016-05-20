@@ -1,7 +1,8 @@
 %
 %  FIGURES FOR THE PAPER ON MULTIKERNEL
 %
-%  TSP paper figures: 1006, 3101, 3305
+%  TSP paper figures: 1006, 3100, 
+%3305
 %
 
 classdef MultikernelSimulations < simFunctionSet
@@ -314,7 +315,7 @@ classdef MultikernelSimulations < simFunctionSet
         
         % 1) Figures for tuning kernel parameters==========================
         
-        % Figure: NMSE vs sigma
+		% Figure: NMSE vs sigma
         %    Instead of drawing one curve per sample size, draw one curve
         %    per bandwidth (of signal).
         function F = compute_fig_3100(obj,niter)		
@@ -348,14 +349,18 @@ classdef MultikernelSimulations < simFunctionSet
             estimator = estimator.replicate([],{}, ...
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
 			
+			caption = Parameter.getTitle(graphGenerator,generator,sampler,estimator);
+			
 			% Simulation
             mse = Simulate(generator, sampler, estimator, niter);
             
             % Representation
+			
             F = F_figure('X',sigmaArray.^2,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
-                'xlab','\sigma^2','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f, \\mu=%3.1d, S = %d', N, p, mu, sampleSize));		  
+                'xlab','\sigma^2','ylab','NMSE',...
+                'caption',caption,'styles',{'-','--','-^','--^','-*'},'leg_pos_vec',[ 0.3073    0.6041    0.2206    0.3045]);		  
+
 		end
 		
 		% Figure NMSE vs samplesize
@@ -708,8 +713,14 @@ classdef MultikernelSimulations < simFunctionSet
 			F.ylab = 'NMSE';
 			F.tit = '';
 			F.leg_pos_vec = [ 0.3073    0.6041    0.2206    0.3045];
-        end
+		end
         
+		
+		
+		
+		
+		
+		
         % 
         function F = compute_fig_3120(obj,niter)		
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
@@ -1281,8 +1292,7 @@ classdef MultikernelSimulations < simFunctionSet
 		
 		% MC simulation to compare BL estimators and MKL estimators with BL
 		% kernels. 
-		% - bandlimited signal, but MC does not average across signal
-		%   realizations
+		% - bandlimited signal,
 		function F = compute_fig_3402(obj,niter)
 						
 			N = 100; % number of vertices			
@@ -1291,15 +1301,15 @@ classdef MultikernelSimulations < simFunctionSet
 			SNR = 10; % dB
 			S_vec = 10:5:100;
 			
-			s_beta = 1e10; % amplitude parameter of the bandlimited kernel
+			s_beta = 1e4; % amplitude parameter of the bandlimited kernel
 			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
 						
 			% 1. define graph function generator
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.7 ,'s_numberOfVertices',N);
 			graph = graphGenerator.realization;			
-			bandlimitedFunctionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
-			graphFunction = bandlimitedFunctionGenerator.realization();
-			generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			%graphFunction = bandlimitedFunctionGenerator.realization();
+			%generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
 			
 			% 2. define graph function sampler
 			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
@@ -1315,21 +1325,19 @@ classdef MultikernelSimulations < simFunctionSet
 			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));			
 			mkl_estimator = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3);
 			mkl_estimator.c_replicatedVerticallyAlong = {'ch_name'};			
-			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','RKHS superposition','kernel superposition'},'',[]);
-            mkl_estimator(1).b_finishSingleKernel = 1;
-			mkl_estimator(1).s_finishRegularizationParameter = 1e7;
-			mkl_estimator(1).c_replicatedVerticallyAlong = [mkl_estimator(1).c_replicatedVerticallyAlong,'b_finishSingleKernel'];
-			est = [mkl_estimator;bl_estimator];
+			mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+            est = [mkl_estimator;bl_estimator];
 			
 			% Simulation
-			res = Simulator.simStatistic(niter,generator,sampler,est);
-			mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			%res = Simulator.simStatistic(niter,generator,sampler,est);
+			%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			mse =  Simulate(generator,sampler,est,niter);
 			
 			% Representation			
 			F(1) = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
                 'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit',...
-				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,bandlimitedFunctionGenerator,generator,sampler));
+				[0 1.5],'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,generator,generator,sampler));
 			F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
 			
 		end
