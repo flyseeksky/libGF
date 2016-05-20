@@ -409,8 +409,9 @@ classdef MultikernelSimulations < simFunctionSet
 			[N,p,SNR,~,~] = MultikernelSimulations.simulationSetting();
             N = 250;
             sampleSize = 100;
+            %p = .7;
             mu = 1e-4;
-            bandwidthVec = 10:10:100;
+            bandwidthVec = 10:10:N;
 						
 			%% generate graph
 			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
@@ -418,13 +419,14 @@ classdef MultikernelSimulations < simFunctionSet
             
             %% generate signal on this graph
 			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
-            functionGenerator.b_generateSameFunction = 1;
+            functionGenerator.b_generateSameFunction = 0;
             generator = functionGenerator.replicate([], {}, 's_bandwidth', num2cell(bandwidthVec));
 			
 			%% generate Kernel matrix
             L = graph.getLaplacian();
             %sigmaCell = { sqrt(0.01), sqrt(0.1), sqrt(0.5), sqrt(1), sqrt(linspace(0.01, 1, 10)), sqrt(linspace(0.01, 1, 30)) };
-            sigmaCell = { sqrt(0.2), sqrt(0.4), sqrt(0.6), sqrt(.8), sqrt(1), (linspace(sqrt(0.2), sqrt(1), 10)), sqrt(linspace(0.2, 1, 10)) };
+            %sigmaCell = { sqrt(0.2), sqrt(0.4), sqrt(0.6), sqrt(.8), sqrt(1), (linspace(sqrt(0.2), sqrt(1), 10)), sqrt(linspace(0.2, 1, 10)) };
+            sigmaCell = { sqrt(0.1), sqrt(.15), sqrt(.2), sqrt(.25), sqrt(.3), (linspace(sqrt(0.1), sqrt(.3), 10)), sqrt(linspace(0.01, .2, 10)) };
 			%sigmaArray = sqrt(linspace(0.01, 1.5, 30));
             %sigma = 0.8;
             for i = 1:length(sigmaCell)
