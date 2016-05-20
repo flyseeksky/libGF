@@ -1,7 +1,8 @@
 %
 %  FIGURES FOR THE PAPER ON MULTIKERNEL
 %
-%  TSP paper figures: 1006, 3100, 3402, 3232 (table)
+%  TSP paper figures: 1006, 3100 (print 3108), 3402 (print 3404), 3232
+%  (table), 3234
 %3305
 %
 
@@ -320,6 +321,10 @@ classdef MultikernelSimulations < simFunctionSet
         %    per bandwidth (of signal).
         function F = compute_fig_3100(obj,niter)		
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+			N = 100;
+			SNR = 20;
+			sampleSize = 40;
+			p = .25; 
             mu = 1e-4;
             bandwidthVec = [5 10 20 30 40];
 						
@@ -328,8 +333,8 @@ classdef MultikernelSimulations < simFunctionSet
 			graph = graphGenerator.realization();
             
             % generate signal on this graph
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
-            functionGenerator.b_generateSameFunction = 1;
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'ch_distribution','uniform');
+            %functionGenerator.b_generateSameFunction = 1;
             generator = functionGenerator.replicate('s_bandwidth', ...
                 num2cell(bandwidthVec), [], {} );
 			
@@ -703,29 +708,13 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 
+
 		
-		% print version of 3100
-		function F = compute_fig_3105(obj, niter)
-			F = obj.load_F_structure(3100);
-			F.styles = {'-','--','-^','--^','-*'};
-			F.xlab = '\sigma^2';
-			F.caption = F.tit;
-			F.ylab = 'NMSE';
-			F.tit = '';
-			F.leg_pos_vec = [ 0.3073    0.6041    0.2206    0.3045];
-		end
-        
-		
-		
-		
-		
-		
-		
-        % 
-        function F = compute_fig_3120(obj,niter)		
+		% Figure: NMSE vs sigma
+		% like 3100 but with uniform distribution
+        function F = compute_fig_3105(obj,niter)		
 			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
-            % mu = 1e-4;
-            sampleSize = 40;
+            mu = 1e-4;
             bandwidthVec = [5 10 20 30 40];
 						
 			% generate graph
@@ -733,45 +722,145 @@ classdef MultikernelSimulations < simFunctionSet
 			graph = graphGenerator.realization();
             
             % generate signal on this graph
-			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph);
-            functionGenerator.b_generateSameFunction = 1;
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'ch_distribution','uniform');
+            functionGenerator.b_generateSameFunction = 0;
             generator = functionGenerator.replicate('s_bandwidth', ...
                 num2cell(bandwidthVec), [], {} );
 			
 			% generate Kernel matrix
-			%sigmaArray = sqrt(linspace(0.01, 1.5, 10));
-			sigmaArray = sqrt(linspace(0.1, 1.5, 20));
+			sigmaArray = sqrt(linspace(0.01, 1.5, 30));
             %sigma = 0.8;
 			L = graph.getLaplacian();
             kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
 			m_kernel = kG.getKernelMatrix();
             
 			% define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples', sampleSize);
-            	
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
+                's_numberOfSamples', sampleSize);
+			
 			% define function estimator
-            estimatorTemp = MkrGraphFunctionEstimator('s_numFoldValidation',10);
-            estimator = estimatorTemp.replicate([],{}, ...
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+            estimator = estimator.replicate([],{}, ...
                 'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
-            
-			% cross validation
-            v_mu = logspace(-10,0,14);
-			m_graphFunction = generator(1).realization();
-            for estIndex = 1 : length(estimator)
-                [v_samples, v_positions] = sampler(1).sample(m_graphFunction);
-                mu(estIndex) = estimator(estIndex).crossValidation(v_samples, v_positions, v_mu);
-                estimator(estIndex).s_regularizationParameter = mu(estIndex);
-            end
-            
+			
+			caption = Parameter.getTitle(graphGenerator,generator,sampler,estimator);
+			
 			% Simulation
             mse = Simulate(generator, sampler, estimator, niter);
             
             % Representation
+			
             F = F_figure('X',sigmaArray.^2,'Y',mse, ...
                 'leg',Parameter.getLegend(generator,sampler, estimator),...
-                'xlab','\sigma^2','ylab','Normalized MSE',...
-                'tit', sprintf('N=%d, p=%2.2f, S = %d', N, p, sampleSize));		  
+                'xlab','\sigma^2','ylab','NMSE',...
+                'caption',caption,'styles',{'-','--','-^','--^','-*'},'leg_pos_vec',[ 0.3073    0.6041    0.2206    0.3045]);		  
+
 		end
+				
+		
+		% Figure: NMSE vs sigma
+		% like 3105 but x axis shows B
+        function F = compute_fig_3106(obj,niter)		
+			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+            mu = 1e-4;
+            bandwidthVec = [5:5:50];
+						
+			% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            % generate signal on this graph
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'ch_distribution','uniform');
+            functionGenerator.b_generateSameFunction = 0;
+            generator = functionGenerator.replicate([], {},'s_bandwidth', ...
+                num2cell(bandwidthVec) );
+			
+			% generate Kernel matrix
+			sigmaArray = sqrt([0.1:.2:1.1]);
+            %sigma = 0.8;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
+                's_numberOfSamples', sampleSize);
+			
+			% define function estimator
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+            estimator = estimator.replicate(...
+                'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))),[],{});
+			
+			caption = Parameter.getTitle(graphGenerator,generator,sampler,estimator);
+			
+			% Simulation
+            mse = Simulate(generator, sampler, estimator, niter);
+            
+            % Representation
+			
+            F = F_figure('X',bandwidthVec,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler),...
+                'xlab','B','ylab','NMSE',...
+                'caption',caption,'leg_pos_vec',[ 0.3073    0.6041    0.2206    0.3045]);		  
+
+		end
+		
+		
+		% Figure: NMSE vs sigma
+		% like 3105 but with exponentially decaying
+        function F = compute_fig_3107(obj,niter)		
+			[N,p,SNR,sampleSize,~] = MultikernelSimulations.simulationSetting();
+			p = 0.5;
+            mu = 1e-4;
+            bandwidthVec = [5 10 20 30 40];
+						
+			% generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            
+            % generate signal on this graph
+			functionGenerator = ExponentiallyDecayingGraphFunctionGenerator('graph',graph,'s_decayingRate',.5);         
+            generator = functionGenerator.replicate('s_bandwidth', ...
+                num2cell(bandwidthVec), [], {} );
+			
+			% generate Kernel matrix
+			sigmaArray = sqrt(linspace(0.01, 1.5, 30));
+            %sigma = 0.8;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray));
+			m_kernel = kG.getKernelMatrix();
+            
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, ...
+                's_numberOfSamples', sampleSize);
+			
+			% define function estimator
+            estimator = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+            estimator = estimator.replicate([],{}, ...
+                'm_kernel', mat2cell(m_kernel, N, N, ones(1,size(m_kernel,3))));
+			
+			caption = Parameter.getTitle(graphGenerator,generator,sampler,estimator);
+			
+			% Simulation
+            mse = Simulate(generator, sampler, estimator, niter);
+            
+            % Representation
+			
+            F = F_figure('X',sigmaArray.^2,'Y',mse, ...
+                'leg',Parameter.getLegend(generator,sampler, estimator),...
+                'xlab','\sigma^2','ylab','NMSE',...
+                'caption',caption,'styles',{'-','--','-^','--^','-*'},'leg_pos_vec',[ 0.3073    0.6041    0.2206    0.3045]);		  
+
+		end
+		
+		
+		% print version of 3100
+		function F = compute_fig_3108(obj,niter)
+			F = obj.load_F_structure(3100);
+			F.xlab = 'Diffusion kernel parameter (\sigma^2)';
+			F.ylimit = [0 0.7];
+		end
+		
 		
 		% 2) Figures for tuning the regularization parameter ==============
 		
@@ -1027,8 +1116,80 @@ classdef MultikernelSimulations < simFunctionSet
 			F(2) = F_figure('Y',estimated_bandwidth);
 		end
         
-        
+          %
+        % sparsity paths for 3232
+        function F = compute_fig_3233(obj, niter)
+						
+            [~,p,~] = MultikernelSimulations.simulationSetting();
+            %u_Vec = logspace(-6,0,50);
+			SNR = 20;
+			sampleSize = 80;
+			N = 250;
+            
+						
+			% 1. generate graph
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', p,'s_numberOfVertices',N);
+			graph = graphGenerator.realization();
+            % 2. generate graph function
+			functionGenerator = BandlimitedGraphFunctionGenerator('graph',graph,'ch_distribution','uniform');
+			functionGenerator.b_sortedSpectrum = 0;
+			functionGenerator.b_generateSameFunction = 0;
+			%m_graphFunction = functionGenerator.realization();
+            %generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',m_graphFunction);
+			
+			% 3. generate Kernel matrix
+			%sigmaArray = linspace(0.1, 1.5, 20);
+            B_vec = 10:5:90;
+            beta = 1e3;   % for bandlimited kernel
+            %sigmaArray = 0.80;
+			L = graph.getLaplacian();
+            kG = LaplacianKernel('m_laplacian',L,'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(L, B_vec, beta));
+			m_kernel = kG.getKernelMatrix();
+            
+            % 4. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR, 's_numberOfSamples',sampleSize);
+            
+            % 5. define function estimator
+            estimator = MkrGraphFunctionEstimator('m_kernel', m_kernel, 's_regularizationParameter', 1e-2);
+            estimator.b_estimateFreq = 1;
+            %estimator = estimator.replicate([],{}, ...
+            %    's_regularizationParameter', num2cell(u_Vec));
+			
+			
+			% Simulation
+			functionGenerator.s_bandwidth = 20;
+			
+			v_graphFunction = functionGenerator.realization();
+			[m_samples, m_positions] = sampler.sample(v_graphFunction);
+			
+			v_mu = 10.^(-7:.5:0);
+			for k = 1:length(v_mu)
+				estimator.s_regularizationParameter = v_mu(k);
+				[~,m_alpha,~, main_kernel_ind] = estimator.estimate(m_samples, m_positions);
+				alphanorm(:,k) = sum( m_alpha.^2, 1 )';
+			end
+						            
+            for i = 1:length(B_vec)
+                legendStr{i} = sprintf('B = %2.2f',B_vec(i));
+            end
+			styles = {'-','-.','--',':','-v','-.v','--v',':v','-o','-.o','--o',':o','-s','-.s','--s',':s','-s','-.s','--s',':s','-s','-.s','--s',':s','-s','-.s','--s',':s','-s','-.s','--s',':s'};
+			F = F_figure('X', v_mu, 'Y', alphanorm, 'logx', true, 'xlimit',[min(v_mu) max(v_mu)],...
+				'xlab', 'Regularization parameter (\mu)', 'ylab', '||\alpha_i||^2','leg',legendStr(1:4),'leg_pos','northwest','styles',styles,'colorp',10);
 
+		end
+        
+        % print version of 3233
+		function F = compute_fig_3234(obj, niter)
+			F = obj.load_F_structure(3233);
+			F.leg_pos = 'northeast';
+			F.xlab = 'Regularization parameter';
+			F.ylab = '||\bf\alpha_{\rm m}\rm||^2';
+			B_vec = 10:5:90;
+			for i = 1:4
+				legendStr{i} = sprintf('m = %d (B = %2.2f)',i, B_vec(i));
+            end
+			F.leg = legendStr;
+		end
  	
 		% 3) Figures to compare MKL and bandlimited =======================
 		
@@ -1329,9 +1490,9 @@ classdef MultikernelSimulations < simFunctionSet
 			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));			
 			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
 			%mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2,'ch_type','RKHS superposition');
-			mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-1,'ch_type','RKHS superposition');
+			mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',.05,'ch_type','RKHS superposition');
 			%mkl_estimator(4,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-3,'ch_type','RKHS superposition');
-			mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','kernel superposition');
+			mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',.01,'ch_type','kernel superposition');
 			mkl_estimator(1,1).c_replicatedVerticallyAlong = {'ch_name','ch_type'};			
 			mkl_estimator(2,1).c_replicatedVerticallyAlong = {'ch_name','ch_type'};			
 			%mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
@@ -1402,6 +1563,68 @@ classdef MultikernelSimulations < simFunctionSet
                 'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),...
                 'xlab',Parameter.getXLabel(generator,sampler,est),'ylimit', [0 1.5],...
 				'ylab','NMSE','tit',Parameter.getTitle(graphGenerator,generator,sampler));
+			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+			
+		end
+		
+		% print version of 3402
+		function F = compute_fig_3404(obj,niter)
+			F = obj.load_F_structure(3402);
+			F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Bandlimited','BL';'Ass. B = cut-off freq.','cut-off'};
+			F.leg_pos = 'northeast';
+		end
+		
+		% for tuning parameters of 3402
+		function F = compute_fig_3405(obj,niter)
+						
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the true function
+			B_vec = [10 20 30 -1]; % assumed bandwidth for estimation
+			SNR = 10; % dB
+			S_vec = 10:5:100;
+			
+			s_beta = 1e4; % amplitude parameter of the bandlimited kernel
+			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
+						
+			% 1. define graph function generator
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.25 ,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			%graphFunction = bandlimitedFunctionGenerator.realization();
+			%generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			
+			% 2. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
+			sampler = sampler.replicate('',[],'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. BL graph function estimator
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+								
+			% 4. MKL function estimators	
+			% 4. generate Kernel matrix
+			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));			
+			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
+			%mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2,'ch_type','RKHS superposition');
+			mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
+			%mkl_estimator(4,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-3,'ch_type','RKHS superposition');			
+			mkl_estimator(1,1).c_replicatedVerticallyAlong = {'ch_name','ch_type'};			
+			
+			mkl_estimator = mkl_estimator.replicate('s_regularizationParameter',num2cell([.05 10.^(-5:0)]),'',[]);
+            est = [mkl_estimator];
+			
+
+			% Simulation
+			%res = Simulator.simStatistic(niter,generator,sampler,est);
+			%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			mse =  Simulate(generator,sampler,est,niter);
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),'leg_pos','northwest',...
+                'xlab','Number of observed vertices (S)','ylimit',[0 1.5],'xlimit',[min(Parameter.getXAxis(generator,sampler,est)),max(Parameter.getXAxis(generator,sampler,est))],...
+				'ylab','NMSE','caption',Parameter.getTitle(graphGenerator,generator,sampler,est));
 			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
 			
 		end
@@ -1484,6 +1707,7 @@ classdef MultikernelSimulations < simFunctionSet
 		% %%  5. airports
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
+		% Check graph construction code
 		function F = compute_fig_5000(obj,niter)
 			
 			%0. define parameters
@@ -1587,6 +1811,190 @@ classdef MultikernelSimulations < simFunctionSet
 			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of observed vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'});
 		end
 		
+		% visualization: scatter plot all airports
+		function F = compute_fig_5001(obj,niter)
+			folder = 'libGF/datasets/AirportsDataset';
+			load([folder '/delaytables.mat'],'arrDelayMatrix','depDelayMatrix');
+			load([folder '/adjacency.mat'],'adjacency');
+			
+			A = sum(adjacency,3);
+			s_airportNum = size(arrDelayMatrix,1);
+			for row = 1:s_airportNum
+				for col = 1:s_airportNum
+					if A(row,col)>0
+						plot(arrDelayMatrix(row,:),arrDelayMatrix(col,:),'.')
+						hold all
+						plot(depDelayMatrix(row,:),depDelayMatrix(col,:),'.')
+						hold off
+						xlim([-20 20])
+						ylim([-20 20])
+						pause						
+					end
+				end				
+			end
+			
+			
+			F=[];
+		end
+		
+		% visualization: scatter plot for 50 busiest airports
+		function F = compute_fig_5002(obj,niter)
+			folder = 'libGF/datasets/AirportsDataset';
+			load([folder '/delaytables.mat'],'arrDelayMatrix','depDelayMatrix');
+			load([folder '/adjacency.mat'],'adjacency');
+			
+			A = sum(adjacency,3);
+			
+			% select busiest airports
+			s_selectedAirportNum = 50;
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports
+			
+			arrDelayMatrix = arrDelayMatrix(v_inds,:);
+			depDelayMatrix = depDelayMatrix(v_inds,:);
+			adjacency = adjacency(v_inds,v_inds,:);
+			
+			
+			s_airportNum = size(arrDelayMatrix,1);
+			for row = 1:s_airportNum
+				for col = 1:s_airportNum
+					if A(row,col)>0
+						plot(arrDelayMatrix(row,:),arrDelayMatrix(col,:),'.')
+						hold all
+						plot(depDelayMatrix(row,:),depDelayMatrix(col,:),'.')
+						hold off
+						legend('arrival delay','departure delay');
+						grid on
+						xlim([-20 20])
+						ylim([-20 20])
+						pause						
+					end
+				end				
+			end
+			
+			
+			F=[];
+		end
+		
+		% visualization: graph construction just by Dorina's method (no
+		% constraints)
+		function F = compute_fig_5003(obj,niter)
+			
+			% Graph construction parameters
+			s_niter=10;
+			s_beta=1e-3;  % decrease to increase sparsity in the graph
+			s_alpha=1e-6;%0.005; % decrease to increase bandlimitedness
+			
+			
+			% load dataset
+			folder = 'libGF/datasets/AirportsDataset';
+			load([folder '/delaytables.mat'],'arrDelayMatrix','depDelayMatrix');
+			load([folder '/adjacency.mat'],'adjacency');
+			
+			A = sum(adjacency,3);
+			
+			% select busiest airports
+			s_selectedAirportNum = 50;
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports			
+			arrDelayMatrix = arrDelayMatrix(v_inds,:);
+			depDelayMatrix = depDelayMatrix(v_inds,:);
+			adjacency = adjacency(v_inds,v_inds,:);
+					
+			Ho = depDelayMatrix;
+			m_constraintLaplacian = zeros(size(Ho,1));			
+			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian,'s_dont_estimate_the_signal',0);
+			%toc
+			G = graphGenerator.realization()
+			figure(1)
+			G.plotFourierTransform(Ho)
+			figure(2)
+			hist(G.m_adjacency,100)
+			F = [];
+		end
+		
+		% visualization: graph construction via a constrained versin of 
+		% Dorina's method
+		function F = compute_fig_5004(obj,niter)
+			
+			% Graph construction parameters
+			s_niter=10;
+			s_beta=.5; %1e-2  % decrease to increase sparsity in the graph
+			s_alpha=1e-4;%1e-5; %0.005; % decrease to increase bandlimitedness
+			
+			
+			% load dataset
+			folder = 'libGF/datasets/AirportsDataset';
+			load([folder '/delaytables.mat'],'arrDelayMatrix','depDelayMatrix');
+			load([folder '/adjacency.mat'],'adjacency');
+			
+			A = sum(adjacency,3);
+			
+			% select busiest airports
+			s_selectedAirportNum = 50;
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports			
+			arrDelayMatrix = arrDelayMatrix(v_inds,:);
+			depDelayMatrix = depDelayMatrix(v_inds,:);
+			adjacency = adjacency(v_inds,v_inds,:);
+					
+			Ho = depDelayMatrix;
+			m_constraintLaplacian = (sum(adjacency,3)==0);
+			m_constraintLaplacian = m_constraintLaplacian - diag(diag(m_constraintLaplacian));
+			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian,'s_dont_estimate_the_signal',0);
+			%toc
+			G = graphGenerator.realization()
+			figure(1)
+			G.plotFourierTransform(Ho)
+			figure(2)
+			hist(G.m_adjacency(:),100)
+			F = [];
+		end
+		
+			
+		% visualization: graph construction via a constrained versin of 
+		% Dorina's method
+		% Different from 5004, we now learn the graph using the first 15
+		% days and plot the signal Fourier transform in the second 15 days
+		function F = compute_fig_5005(obj,niter)
+			
+			% Graph construction parameters
+			s_niter=10;
+			s_beta=1e-3; %1e-2  % decrease to increase sparsity in the graph
+			s_alpha=1e-4;%1e-5; %0.005; % decrease to increase bandlimitedness
+			
+			
+			% load dataset
+			folder = 'libGF/datasets/AirportsDataset';
+			load([folder '/delaytables.mat'],'arrDelayMatrix','depDelayMatrix');
+			load([folder '/adjacency.mat'],'adjacency');
+			s_dayNum = size(arrDelayMatrix,2);
+			
+			A = sum(adjacency,3);
+			
+			% select busiest airports
+			s_selectedAirportNum = 50;
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports			
+			arrDelayMatrix = arrDelayMatrix(v_inds,:);
+			depDelayMatrix = depDelayMatrix(v_inds,:);
+			adjacency = adjacency(v_inds,v_inds,:);
+					
+			Ho = depDelayMatrix;
+			Ho_first_half = Ho(:,1:floor(size(Ho,2)/2));
+			Ho_second_half = Ho(:,floor(size(Ho,2)/2)+1:end);
+			m_constraintLaplacian = (sum(adjacency,3)==0);
+			m_constraintLaplacian = m_constraintLaplacian - diag(diag(m_constraintLaplacian));
+			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho_first_half,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta*size(Ho_first_half,2),'m_constraintLaplacian',m_constraintLaplacian,'s_dont_estimate_the_signal',0);
+			%toc
+			G = graphGenerator.realization();
+			figure(1)
+			G.plotFourierTransform(Ho_second_half)
+			[counts,bins]= hist(G.m_adjacency(:),100);
+			F = F_figure('X',bins,'Y',counts/sum(counts),'plot_type_2D','bar');
+		end
+		
+	
 		
 	end
 	

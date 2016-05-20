@@ -96,12 +96,12 @@ classdef GraphLearningSmoothSignalGraphGenerator < GraphGenerator
 			m_B=GraphLearningSmoothSignalGraphGenerator.getLinInequalities(rand(size(m_estimated,1)));
 			s_n=size(GraphLearningSmoothSignalGraphGenerator.vech(rand(size(m_estimated,1))),1);
 			cvx_begin quiet
-			variable v(s_n)
+			    variable v(s_n)
 			minimize( s_alpha*vec((m_estimated)*(m_estimated)')'*m_duplication*v+s_beta*v'*(m_duplication')*m_duplication*v)
 			subject to
-			m_A*v==[k;zeros(size(m_estimated,1),1)];
-			m_B*v<=0;
-			vh_constraints.*v==0;
+			    m_A*v==[k;zeros(size(m_estimated,1),1)];
+			    m_B*v<=0;
+			    vh_constraints.*v==0;
 			cvx_end
 			m_laplacian=GraphLearningSmoothSignalGraphGenerator.my_ivech(v,m_duplication);
 		end
