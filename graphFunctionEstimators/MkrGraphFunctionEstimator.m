@@ -2,9 +2,15 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
     % Function estimator using multi-kernel regression method
     
     properties
-        c_parsToPrint  = {'ch_name', 'ch_type','s_regularizationParameter','m_kernel'};
-		c_stringToPrint  = {'', '','\mu',''};
-		c_patternToPrint = {'%s%s','%s%s','%s = %g','%s%s'};
+% <<<<<<< HEAD
+%         c_parsToPrint  = {'ch_name', 'ch_type','s_regularizationParameter','m_kernel'};
+% 		c_stringToPrint  = {'', '','\mu',''};
+% 		c_patternToPrint = {'%s%s','%s%s','%s = %g','%s%s'};
+% =======
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter'};
+		c_stringToPrint  = {'', '','','\mu'};
+		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s = %g'};
+%>>>>>>> 1ed5d407b0079214c6e868b987daeb2d96beb25a
     end
     
     properties
@@ -67,6 +73,7 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
             end
 		end
 		
+%<<<<<<< HEAD
 		function str = m_kernel_print(obj)
 			
 			str = obj.legendString;
@@ -78,7 +85,6 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
 % 			else
 % 				str = '';
 % 			end
-% 		end
 	end
     
     methods
