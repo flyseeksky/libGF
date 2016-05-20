@@ -13,8 +13,8 @@ classdef AirportGraphGenerator < GraphGenerator
     end
     
     properties
-        ch_filepath = '';   % path to data file
-        airportTable;       % table that contains raw data
+        ch_filepath = {'2014/Jul2014.csv', '2014/Aug2014.csv', '2014/Sep2014.csv'};   % path to data file
+        airportTable = [];       % table that contains raw data
         delayTable;         % a table that each entry contains the average 
                             % delay of one day and one airport
                             
@@ -33,20 +33,37 @@ classdef AirportGraphGenerator < GraphGenerator
         end
         
         % realization: create graph
-        function graph = realization(obj)         
+        function obj = processData(obj) 
+            for iPath = 1 : length(obj.ch_filepath)
                 % read data into a table
-                obj.airportTable = AirportGraphGenerator.importAirportData(obj.ch_filepath);
-                
+                obj.airportTable = AirportGraphGenerator.importfile(obj.ch_filepath{iPath});
                 %% remove all NaN entries
                 obj = obj.removeNanRows();
                 
                 %% average all fights in the same day and the same date
-                [depDelayMatrix, arrDelayMatrix, listOfAirport] = obj.getDelayTable();
+                [depDelayMatrix, arrDelayMatrix, listOfAirport, adjacency] = obj.getDelayTable();
                 %% create adjacency matrix
-                listOfDay = obj.v_listOfDay;
-                adjacency = obj.createAdjacencyMatrix(listOfAirport, listOfDay);
+                %listOfDay = obj.v_listOfDay;
+                %adjacency = obj.createAdjacencyMatrix(listOfAirport, listOfDay);
                 %%
-                % create graph
+                depDelay{iPath} = depDelayMatrix;
+                arrDelay{iPath} = arrDelayMatrix;
+                listOfAir{iPath} = listOfAirport;
+                adj{iPath} = adjacency;
+            end
+            %%
+            delayData.year = '2014';
+            delayData.month = {'Jul','Aug','Sep'};
+            delayData.depDelay = depDelay;
+            delayData.arrDelay = arrDelay;
+            delayData.listOfAirport = listOfAirport;
+            delayData.adjacency = adj;
+            save('delaydata2014.mat', 'delayData')
+            
+        end
+        
+        function graph = realization(obj)
+            graph = Graph('m_adjacency', obj.adjacency);
         end
     end
     
@@ -71,7 +88,7 @@ classdef AirportGraphGenerator < GraphGenerator
     end
     
     methods
-        function [depDelayMatrix, arrDelayMatrix, listOfAirport] = getDelayTable(obj)
+        function [depDelayMatrix, arrDelayMatrix, listOfAirport, adjacency] = getDelayTable(obj)
             % get the two tables from raw data
             % depDelayTable:
             %       each entry contains the average departure delay of 
@@ -82,9 +99,46 @@ classdef AirportGraphGenerator < GraphGenerator
             listOfDay = obj.v_listOfDay;
             listOfAirport = obj.v_listOfAirport;
             
-            depDelayMatrix = NaN(length(listOfAirport), length(listOfDay));
-            arrDelayMatrix = NaN(length(listOfAirport), length(listOfDay));
+            depDelayMatrix = zeros(length(listOfAirport), length(listOfDay));
+            arrDelayMatrix = zeros(length(listOfAirport), length(listOfDay));
+            adjacency = zeros(length(listOfAirport), length(listOfAirport), length(listOfDay));
             
+            %% Online algorithm
+%             depFlight = zeros(length(listOfAirport), length(listOfDay));
+%             arrFlight = zeros(length(listOfAirport), length(listOfDay));
+%             
+%             for i = 1:size(obj.airportTable,1)
+%                 entry = obj.airportTable(i,:);
+%                 day = find( entry.FL_DATE == listOfDay );
+%                 origin = find( entry.ORIGIN_AIRPORT_ID == listOfAirport );
+%                 dest = find( entry.DEST_AIRPORT_ID ==  listOfAirport );
+%                 depD = entry.DEP_DELAY;
+%                 arrD = entry.ARR_DELAY;
+%                 
+%                 if depD > obj.THRESHOLD || arrD > obj.THRESHOLD
+%                     continue;
+%                 end
+%                 
+%                 depDelayMatrix(origin, day) = depDelayMatrix(origin, day) + depD;
+%                 arrDelayMatrix(dest, day) = arrDelayMatrix(dest, day) + arrD;
+%                 
+%                 depFlight(origin, day) = depFlight(origin, day) + 1;
+%                 arrFlight(dest, day) = arrFlight(dest, day) + 1;
+%                 
+%                 adjacency(origin, dest, day) = adjacency(origin, dest, day) + 1;
+%                 
+%                 if mod(i, 10000) == 0
+%                     fprintf('Iteration %d\n',i)
+%                 end
+%             end
+%             
+%             depFlight( depFlight == 0 ) = eps;
+%             arrFlight( arrFlight == 0 ) = eps;
+%             
+%             depDelayMatrix = depDelayMatrix ./ depFlight;
+%             arrDelayMatrix = arrDelayMatrix ./ arrFlight;
+            %
+            %% vector form code
             for day = 1:length(listOfDay)
                 % create a sub-table that contains rows of that day
                 dayTable = obj.airportTable( obj.airportTable.FL_DATE == listOfDay(day), : );
@@ -115,13 +169,13 @@ classdef AirportGraphGenerator < GraphGenerator
                 for row = 1 : length(listOfAirport)
                     airportOrgID = listOfAirport(row);
                     subOrgTab = subDayTab( subDayTab.ORIGIN_AIRPORT_ID == airportOrgID,: );
-                    for col = row+1 : length(listOfAirport)
+                    for col = 1 : length(listOfAirport)
                         airportDstID = listOfAirport(col);
                         %subOrgDstTab = subOrgTab(obj.airportTable.DEST_AIRPORT_ID == airportOrgID);
                         A(row,col,slice) = sum(subOrgTab.DEST_AIRPORT_ID == airportDstID);
                     end
                 end
-                A(:,:,slice) = A(:,:,slice) + A(:,:,slice)';
+                %A(:,:,slice) = A(:,:,slice) + A(:,:,slice)';
             end
         end
         
@@ -180,20 +234,20 @@ classdef AirportGraphGenerator < GraphGenerator
             VERTEX = union(originAirport, destAirport);
         end
         
-        function March2016 = importAirportData(filename, startRow, endRow)
+        function Jul2014 = importfile(filename, startRow, endRow)
             %IMPORTFILE Import numeric data from a text file as a matrix.
-            %   MARCH2016 = IMPORTAIRPORTDATA(FILENAME) Reads data from text file FILENAME for
+            %   JUL2014 = IMPORTFILE(FILENAME) Reads data from text file FILENAME for
             %   the default selection.
             %
-            %   MARCH2016 = IMPORTFILE(FILENAME, STARTROW, ENDROW) Reads data from rows
+            %   JUL2014 = IMPORTFILE(FILENAME, STARTROW, ENDROW) Reads data from rows
             %   STARTROW through ENDROW of text file FILENAME.
             %
             % Example:
-            %   March2016 = importfile('March2016.csv', 2, 479123);
+            %   Jul2014 = importfile('Jul2014.csv', 2, 520881);
             %
             %    See also TEXTSCAN.
             
-            % Auto-generated by MATLAB on 2016/05/19 18:28:31
+            % Auto-generated by MATLAB on 2016/05/20 12:29:23
             
             %% Initialize variables.
             delimiter = ',';
@@ -211,16 +265,14 @@ classdef AirportGraphGenerator < GraphGenerator
             %	column6: double (%f)
             %   column7: text (%s)
             %	column8: double (%f)
-            %   column9: text (%s)
-            %	column10: double (%f)
+            %   column9: double (%f)
+            %	column10: text (%s)
             %   column11: text (%s)
             %	column12: text (%s)
             %   column13: text (%s)
             %	column14: text (%s)
-            %   column15: text (%s)
-            %	column16: text (%s)
             % For more information, see the TEXTSCAN documentation.
-            formatSpec = '%{MM/dd/yyyy}D%f%f%f%s%f%s%f%s%f%s%s%s%s%s%s%[^\n\r]';
+            formatSpec = '%{MM/dd/yyyy}D%f%f%f%s%f%s%f%f%s%s%s%s%s%[^\n\r]';
             
             %% Open the text file.
             fileID = fopen(filename,'r');
@@ -248,21 +300,16 @@ classdef AirportGraphGenerator < GraphGenerator
             % script.
             
             %% Create output variable
-            March2016 = table(dataArray{1:end-1}, 'VariableNames', ...
-                {'FL_DATE','AIRLINE_ID','FL_NUM','ORIGIN_AIRPORT_ID',...
-                'ORIGIN','DEST_AIRPORT_ID','DEST','DEP_DELAY',...
-                'DEP_TIME_BLK','ARR_DELAY','ARR_TIME_BLK',...
-                'CARRIER_DELAY','WEATHER_DELAY','NAS_DELAY',...
-                'SECURITY_DELAY','LATE_AIRCRAFT_DELAY'});
+            Jul2014 = table(dataArray{1:end-1}, 'VariableNames', {'FL_DATE','AIRLINE_ID','FL_NUM','ORIGIN_AIRPORT_ID','ORIGIN','DEST_AIRPORT_ID','DEST','DEP_DELAY','ARR_DELAY','CARRIER_DELAY','WEATHER_DELAY','NAS_DELAY','SECURITY_DELAY','LATE_AIRCRAFT_DELAY'});
             
             % For code requiring serial dates (datenum) instead of datetime, uncomment
             % the following line(s) below to return the imported dates as datenum(s).
             
-            % March2016.FL_DATE=datenum(March2016.FL_DATE);
-            
-            
-        end
+            % Jul2014.FL_DATE=datenum(Jul2014.FL_DATE);
+
+
         
+        end
     end
     
 end
