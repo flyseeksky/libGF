@@ -1601,7 +1601,7 @@ classdef MultikernelSimulations < simFunctionSet
 			for i = 1:size(Hn,2)
 				generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Hn(:,i));
 				%generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Mn);
-				nmse = nmse + Simulate(generator, sampler, est, niter);
+				nmse = nmse + Simulate(generator, sampler, est, niter, true);
 				%res = Simulator.simStatistic(niter,generator,sampler,est);
 				%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
 			end
