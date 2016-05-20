@@ -3,8 +3,8 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
     
     properties
         c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter'};
-		c_stringToPrint  = {'', '','',''};
-		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s%s'};
+		c_stringToPrint  = {'', '','','\mu'};
+		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s = %g'};
     end
     
     properties
@@ -67,13 +67,13 @@ classdef MkrGraphFunctionEstimator < GraphFunctionEstimator
             end
 		end
 		
-		function str = s_regularizationParameter_print(obj)
-			if ~isempty(obj.s_regularizationParameter)
-				str = 'Finish with single kernel';
-			else
-				str = '';
-			end
-		end
+% 		function str = s_regularizationParameter_print(obj)
+% % 			if ~isempty(obj.s_regularizationParameter)
+% % 				str = 'Finish with single kernel';
+% % 			else
+% % 				str = '';
+% % 			end
+% 		end
 	end
     
     methods
