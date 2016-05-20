@@ -48,7 +48,7 @@ classdef AirportGraphGenerator < GraphGenerator
                 %%
                 depDelay{iPath} = depDelayMatrix;
                 arrDelay{iPath} = arrDelayMatrix;
-                listOfAir{iPath} = listOfAirport;
+                airportList{iPath} = listOfAirport;
                 adj{iPath} = adjacency;
             end
             %%
@@ -56,7 +56,7 @@ classdef AirportGraphGenerator < GraphGenerator
             delayData.month = {'Jul','Aug','Sep'};
             delayData.depDelay = depDelay;
             delayData.arrDelay = arrDelay;
-            delayData.listOfAirport = listOfAirport;
+            delayData.airportList = airportList;
             delayData.adjacency = adj;
             save('delaydata2014.mat', 'delayData')
             
@@ -144,21 +144,38 @@ classdef AirportGraphGenerator < GraphGenerator
                 dayTable = obj.airportTable( obj.airportTable.FL_DATE == listOfDay(day), : );
                 for airport = 1:length(listOfAirport)
                     % create a sub-table that contains rows of that airport
-                    airportDayTable = dayTable( dayTable.ORIGIN_AIRPORT_ID == ...
-                        listOfAirport(airport) ,:);
-                        outlierInd = abs(airportDayTable.DEP_DELAY) > obj.THRESHOLD | ...
-                            abs(airportDayTable.DEP_DELAY) > obj.THRESHOLD;
-                        depDelayMatrix(airport, day) = mean(airportDayTable.DEP_DELAY(~outlierInd));
-                        arrDelayMatrix(airport, day) = mean(airportDayTable.ARR_DELAY(~outlierInd));
+                    orgDayTable = dayTable( dayTable.ORIGIN_AIRPORT_ID == ...
+                        listOfAirport(airport), :);
+                    dstDayTable = dayTable( dayTable.DEST_AIRPORT_ID == ...
+                        listOfAirport(airport), :);
+                    
+                    % find all the outliers
+                    depOutlierIndex = abs(orgDayTable.DEP_DELAY) > obj.THRESHOLD;
+                    arrOutlierIndex = abs(dstDayTable.DEP_DELAY) > obj.THRESHOLD;
+                    
+                    % update delay matrix
+                    depDelayMatrix(airport, day) = mean(orgDayTable.DEP_DELAY(~depOutlierIndex));
+                    arrDelayMatrix(airport, day) = mean(dstDayTable.ARR_DELAY(~arrOutlierIndex));
+                    
+                    % update adjacency matrix
+                    for airport2 = 1:length(listOfAirport)
+                        if airport2 == airport
+                            continue;
+                        end
+                        
+                        adjacency(airport, airport2, day) = sum( orgDayTable.DEST_AIRPORT_ID == listOfAirport(airport2) );
+                    end
                 end
+                fprintf('Day %d finished\n', day);
             end
             
             % remove airports that contains NaN
             mask = isnan(depDelayMatrix) | isnan(arrDelayMatrix);
-            airportInd = ~(sum(mask, 2) >= 1);
-            depDelayMatrix = depDelayMatrix(airportInd,:);
-            arrDelayMatrix = arrDelayMatrix(airportInd,:);
-            listOfAirport = listOfAirport(airportInd);
+            airportIndex = ~(sum(mask, 2) >= 1);
+            depDelayMatrix = depDelayMatrix(airportIndex,:);
+            arrDelayMatrix = arrDelayMatrix(airportIndex,:);
+            listOfAirport = listOfAirport(airportIndex);
+            adjacency = adjacency(airportIndex, airportIndex, :);
         end
         
         function A = createAdjacencyMatrix(obj, listOfAirport, listOfDay)
