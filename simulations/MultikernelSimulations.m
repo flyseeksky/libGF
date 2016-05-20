@@ -993,12 +993,13 @@ classdef MultikernelSimulations < simFunctionSet
 			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			% print the table into a tex file
 			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-			fid = fopen('est_freq.tex','w');
-			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(est_bandwidth))));     % heading line
+			fid = fopen('libGF/simulations/MultikernelSimulations_data/est_freq.tex','w');
+			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,1+length(est_bandwidth))));     % heading line
 			fprintf(fid, '\t\\hline\n\t\t');
 			for i = 1:length(bandwidth_vec)
 				fprintf(fid, ' & B = %d', bandwidth_vec(i));
 			end
+			fprintf(fid, '\t\\hline\n\t\t');
 			
 			% print mean
 			fprintf(fid, '\\\\\n\tBIAS\t');
@@ -1013,14 +1014,17 @@ classdef MultikernelSimulations < simFunctionSet
 			fprintf(fid, '\\\\\n');
 			fprintf(fid, '\t\\hline\n');
 			fprintf(fid, '\\end{tabular}');		% bottom line
+			caption = Parameter.getTitle(graphGenerator,functionGenerator,sampler,estimator);
+			fprintf(fid, caption);
 			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-			figure(32321)
-			plot(estimated_bandwidth')
-			F = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth_mean'], ...
+			
+			
+			F(1) = F_figure('X', bandwidth_vec, 'Y', [bandwidth_vec; est_bandwidth_mean'], ...
 				'xlab', 'experiment index', 'ylab', 'bandwidth', ...
                 'tit', sprintf('N=%d, p=%2.2f, S=%d, numOfKernels=%d', ...
                 N, p, sampleSize, length(B_vec)), ...
                 'leg',{'true bandwidth','estimated bandwidth'});
+			F(2) = F_figure('Y',estimated_bandwidth);
 		end
         
         
