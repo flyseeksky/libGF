@@ -2570,6 +2570,95 @@ end
 		end
         
 		
+		% Estimation test with more data
+        function F = compute_fig_5201(obj,niter)
+            % define parameters
+			s_nodeNum = 30;
+            s_departureDelay = 1;
+			
+			% estimation parameters
+			s_mu = 1e-2;
+			s_numberOfSamples = 29;
+			
+			%%%%%%%%%%%%%%%%%%
+
+			% load data
+			
+			[ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+			
+			
+    %        [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
+	
+debug = 1;
+if debug
+	%m_training_data = [m_training_data m_test_data];
+end
+            m_adjacency = sum(m_training_adj,3);
+			m_adjacency = m_adjacency > 100;
+			
+			sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+
+if debug
+	m_cov = cov(m_normalized_training_data');
+end
+			
+			% generator and sampler
+			generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+			sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+			
+			% simulation
+			estimator = cov_estimator;
+			mse = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+				
+				% estimate signal
+				v_signalEst = cov_estimator.estimate(v_samples,v_sampleLocations);				
+if debug
+	% LMMSE estimator
+	v_signalEst = m_cov(:,v_sampleLocations)*(  (m_cov(v_sampleLocations,v_sampleLocations) + 1e-10*eye(length(v_sampleLocations)))\v_samples );	
+end
+				% measure error
+				v_unnormalized_signal = (v_std).*v_signal + v_mean;
+				v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+				
+				v_test_indices = 1:length(v_signal);
+				v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+				mse(1,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2 ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+				
+				umse(1,s_itInd) = norm( v_signal(v_test_indices) - v_signalEst(v_test_indices) )^2; %/  norm( v_signal(v_test_indices)  )^2;
+if debug
+	[v_signalEst v_signal]
+	[v_signalEst(v_test_indices) v_signal(v_test_indices)]
+end
+			end
+			
+			mse = mean(mse,2)
+			% average error
+if debug
+	umse = mean(umse,2)
+end
+			
+			
+			F = [];
+			
+		end
+        
 		
 	end
 	
@@ -2962,8 +3051,59 @@ end
             %m_cov = cov([m_training_delay m_test_delay]')
             
             
-        end
+		end
+		
+		
+		 function [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = getSixMonths(s_selectedAirportNum,s_departureDelay)
+            % s_selectedAirportNum: number of the most crowded airports
+            % that will be returned.
+            %
+            % s_departure_delay:   1: departure delay
+            %                      0: arrival delay
+            	
+			[comDepCell, comArrCell, comAdjCell] = MultikernelSimulations.get6monthData;
+			
+			
+			if s_departureDelay
+				comCell = comDepCell;
+			else
+				comCell = comArrCell;
+			end
+			m_training_delay = [];
+			m_training_adj = zeros(size(comAdjCell{1},1),size(comAdjCell{1},2));
+			for k = 1:length(comCell)-1
+				m_training_delay = [m_training_delay comCell{k}];
+				m_training_adj = m_training_adj + sum(comAdjCell{k},3);
+			end
+			m_test_delay = comCell{end};
+			m_test_adj = sum(comAdjCell{end},3);
+			
+            
+            
+			%% select busiest airports
+			A = m_training_adj;
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports
+			
+            
+			m_training_delay = m_training_delay(v_inds,:);
+			m_test_delay = m_test_delay(v_inds,:);
+            
+            m_training_adj = m_training_adj(v_inds,v_inds,:);
+            m_test_adj = m_test_adj(v_inds,v_inds,:);   
+            
+            %m_cov = cov([m_training_delay m_test_delay]')
+            
+            
+		end
 	
+		
+		
+		
+	
+			
+		
+		
         function [ commonDelay1, commonDelay2, commonAdj1, commonAdj2] = getCommonData(delay1, adj1, airportList1, delay2, adj2, airportList2)
             % s_selectedAirportNum: number of the most crowded airports
             % that will be returned.
@@ -3053,14 +3193,16 @@ end
 		
 
         function [comDepCell, comArrCell, comAdjCell] = get6monthData
+			folder = 'libGF/datasets/AirportsDataset/';
+			
              %% load dataset
-            load delaydata2014
+            load([folder 'delaydata2014'])
             depDelay2014 = delayData.depDelay;
             arrDelay2014 = delayData.arrDelay;
             airportList2014 = delayData.airportList;
             adj2014 = delayData.adjacency;          
             %%            
-            load delaydata2015
+            load([folder 'delaydata2015'])
             depDelay2015 = delayData.depDelay;
             arrDelay2015 = delayData.arrDelay;
             airportList2015 = delayData.airportList;
