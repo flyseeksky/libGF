@@ -2793,7 +2793,7 @@ end
             m_kernel1 = kG.getKernelMatrix();
             mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
             
-            s_sigma = sqrt(linspace(0.1,4,30));
+            s_sigma = sqrt(linspace(0.1,7,30));
             kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
             m_kernel2 = kG.getKernelMatrix();
             mkl_estimator2 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel2,'ch_type', 'kernel superposition');
