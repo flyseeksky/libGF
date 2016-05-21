@@ -1774,6 +1774,9 @@ classdef MultikernelSimulations < simFunctionSet
 	% %%  5. airports
 	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	methods
+		
+		% 0) data analysis  ===============================================
+		
 		% Check graph construction code
 		function F = compute_fig_5000(obj,niter)
 			
@@ -1943,9 +1946,282 @@ classdef MultikernelSimulations < simFunctionSet
 			F=[];
 		end
 		
+        % Tests with covariance matrix
+		%   1. Covariance eigenvalues (principal components)
+		%   2. Energy of the data along the principal directions
+		%   2. Energy of the data along the principal directions of the
+		%      Laplacian
+		% - Laplacian matrix is not constrained to have zeros at certain
+		% positions
+        function F = compute_fig_5003(obj,niter)
+            % define parameters
+			s_nodeNum = 20;
+            s_departureDelay = 0;
+
+			% load data
+            [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
+			m_data = [m_training_delay m_test_delay];
+            
+			% mean subtraction
+			m_data = m_data - mean(m_data,2)*ones(1,size(m_data,2));
+			
+			% std normalization
+			v_std = std(m_data')';
+			m_data = diag(1./v_std)*m_data;
+			
+			% covariance
+			C = cov(m_data');
+			
+			% principal components
+			[m_pDirections, v_pComponents] = eig(C) ; % principal components
+			v_pComponents = diag(v_pComponents);
+			
+			multiplot_array(1,1) = F_figure('Y',flipud(v_pComponents)','tit','Principal components of C');
+			multiplot_array(2,1) = F_figure('Y',cumsum(flipud(v_pComponents))'/sum(v_pComponents),'tit','Cumulative sum of principal components of C','ylab','fraction of variance');
+			F(1) = F_figure('multiplot_array',multiplot_array);
+            
+			% energy of the data along the principal directions
+			m_projections = m_pDirections'*m_data;
+			[H,v_centers] = hist(m_projections',40);
+			for k = 1:length(v_pComponents)
+				leg{k} = sprintf('n = %d (\\lambda_n = %g)',k,v_pComponents(k));
+			end			
+			F(2) = F_figure('Y',H','X',v_centers','leg',leg,'tit','Histogram of energy distribution along PCs');
+            
+			% approximation of inverse covariance via Laplacian			
+			m_covInv = inv(C);
+			m_laplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv);
+
+			% principal directions of Laplacian
+			[m_laplacianPDirections, v_laplacianPComponents] = eig(m_laplacian) ; 
+			v_laplacianPComponents = diag(v_laplacianPComponents);
+			
+			% energy of the data along the principal directions of the
+			% Laplacian
+			m_projections = m_laplacianPDirections'*m_data;
+			[H,v_centers] = hist(m_projections',20);
+			for k = 1:length(v_laplacianPComponents)
+				leg{k} = sprintf('n = %d (\\lambda_n = %g)',k,v_laplacianPComponents(k));
+				if k<6
+					styles{k} = '-';					
+				else
+					styles{k} = '--';
+				end
+			end			
+			F(3) = F_figure('Y',H','X',v_centers','leg',leg,'tit','Histogram of energy distribution along Laplacian PCs','styles',styles);
+			
+		end
+        
+		% Tests with covariance matrix (different from 5003, the topology
+		% is used)
+		%   1. Covariance eigenvalues (principal components)
+		%   2. Energy of the data along the principal directions
+		%   2. Energy of the data along the principal directions of the
+		%      Laplacian
+		% - Laplacian matrix IS constrained to have zeros for links with no
+		%   flights
+        function F = compute_fig_5004(obj,niter)
+            % define parameters
+			s_nodeNum = 25;
+            s_departureDelay = 1;
+
+			% load data
+            [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
+			m_data = [m_training_delay m_test_delay];
+            m_adjacency = sum(m_training_adj,3)+sum(m_test_adj,3);
+m_adjacency = m_adjacency > 10;
+			sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			% mean subtraction
+			m_data = m_data - mean(m_data,2)*ones(1,size(m_data,2));
+			
+			% std normalization
+			v_std = std(m_data')';
+			m_data = diag(1./v_std)*m_data;
+			
+			% covariance
+			C = cov(m_data');
+			
+			% principal components
+			[m_covariancePDirections, v_covariancePComponents] = eig(C) ; % principal components
+			v_covariancePComponents = diag(v_covariancePComponents);
+			
+			multiplot_array(1,1) = F_figure('Y',flipud(v_covariancePComponents)','tit','Principal components of C');
+			multiplot_array(2,1) = F_figure('Y',cumsum(flipud(v_covariancePComponents))'/sum(v_covariancePComponents),'tit','Cumulative sum of principal components of C','ylab','fraction of variance');
+			F(1) = F_figure('multiplot_array',multiplot_array);
+            
+			% energy of the data along the principal directions
+			m_unconstrainedLaplacianProjections = m_covariancePDirections'*m_data;
+			[m_hist,v_centers] = hist(m_unconstrainedLaplacianProjections',40);
+			for k = 1:length(v_covariancePComponents)
+				leg{k} = sprintf('n = %d (\\lambda_n = %g)',k,v_covariancePComponents(k));
+			end			
+			F(2) = F_figure('Y',m_hist','X',v_centers','leg',leg,'tit','Histogram of energy distribution along PCs');
+            
+			% approximation of inverse covariance via unconstrained Laplacian			
+			m_covInv = inv(C);
+			m_unconstrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv);
+
+			% principal directions of unconstrained Laplacian
+			[m_unconstrainedLaplacianPDirections, v_unconstrainedLaplacianPComponents] = eig(m_unconstrainedLaplacian) ; 
+			v_unconstrainedLaplacianPComponents = diag(v_unconstrainedLaplacianPComponents);
+			
+
+			% approximation of inverse covariance via constrained Laplacian			
+			m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+
+			% principal directions of constrained Laplacian
+			[m_constrainedLaplacianPDirections, v_constrainedLaplacianPComponents] = eig(m_constrainedLaplacian) ; 
+			v_constrainedLaplacianPComponents = diag(v_constrainedLaplacianPComponents);
+			
+			
+			% energy of the data along the principal directions of the
+			% Laplacian
+			s_componentsNum = 5;
+			s_binNum = 15;
+			
+			m_covarianceProjections = m_covariancePDirections'*m_data;
+			m_covarianceProjections = m_covarianceProjections(end:-1:end-s_componentsNum+1,:);			
+			[m_histCovariance,v_covarianceCenters] = hist(m_covarianceProjections',s_binNum);
+						
+			m_unconstrainedLaplacianProjections = m_unconstrainedLaplacianPDirections'*m_data;
+			m_unconstrainedLaplacianProjections = m_unconstrainedLaplacianProjections(1:s_componentsNum,:);			
+			[m_histUnconstrained,v_unconstrainedCenters] = hist(m_unconstrainedLaplacianProjections',s_binNum);
+			
+			m_constrainedLaplacianProjections = m_constrainedLaplacianPDirections'*m_data;
+			m_constrainedLaplacianProjections = m_constrainedLaplacianProjections(1:s_componentsNum,:);			
+			[m_histConstrained,v_constrainedCenters] = hist(m_constrainedLaplacianProjections',s_binNum);
+			
+			
+			for k = 1:s_componentsNum
+				leg{k} = sprintf('Cov. n = %d (\\lambda_n = %g)',k,v_covariancePComponents(end-k+1));
+				leg{k+s_componentsNum} = sprintf('Unc. n = %d (\\lambda_n = %g)',k,v_unconstrainedLaplacianPComponents(k));
+				leg{k+2*s_componentsNum} = sprintf('Cons. n = %d (\\lambda_n = %g)',k,v_constrainedLaplacianPComponents(k));
+				styles{k} = '-';
+				styles{k+s_componentsNum} = '--';
+				styles{k+2*s_componentsNum} = '--x';
+			end			
+			Y = [m_histCovariance';m_histUnconstrained';m_histConstrained'];
+			X = [v_covarianceCenters';v_unconstrainedCenters';v_constrainedCenters'];
+			X = kron(X,ones(s_componentsNum,1));
+			
+			F(3) = F_figure('Y',Y,'X',X,'leg',leg,'tit','Histogram of energy distribution along PCs','colorp',s_componentsNum,'styles',styles);
+			
+		end
+        
+		
+		% Tests with covariance matrix (different from 5004, it estimates
+		% the covariance with a sparsity pattern given by the underlying
+		% graph		
+		%   1. Covariance eigenvalues (principal components)
+		%   2. Energy of the data along the principal directions
+		%   2. Energy of the data along the principal directions of the
+		%      Laplacian
+		% - Laplacian matrix IS constrained to have zeros for links with no
+		%   flights
+        function F = compute_fig_5005(obj,niter)
+            % define parameters
+			s_nodeNum = 25;
+            s_departureDelay = 1;
+
+			% load data
+            [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
+			m_data = [m_training_delay m_test_delay];
+            m_adjacency = sum(m_training_adj,3)+sum(m_test_adj,3);
+m_adjacency = m_adjacency > 100;
+			sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			% mean subtraction
+			m_data = m_data - mean(m_data,2)*ones(1,size(m_data,2));
+			
+			% std normalization
+			v_std = std(m_data')';
+			m_data = diag(1./v_std)*m_data;
+			
+			% covariance
+			sample_C = cov(m_data');
+			m_covInv = MultikernelSimulations.learnInverseCov( sample_C , m_adjacency );
+			C = inv(m_covInv);
+			
+			
+			% principal components
+			[m_covariancePDirections, v_covariancePComponents] = eig(C) ; % principal components
+			v_covariancePComponents = diag(v_covariancePComponents);
+			
+			multiplot_array(1,1) = F_figure('Y',flipud(v_covariancePComponents)','tit','Principal components of C');
+			multiplot_array(2,1) = F_figure('Y',cumsum(flipud(v_covariancePComponents))'/sum(v_covariancePComponents),'tit','Cumulative sum of principal components of C','ylab','fraction of variance');
+			F(1) = F_figure('multiplot_array',multiplot_array);
+            
+			% energy of the data along the principal directions
+			m_unconstrainedLaplacianProjections = m_covariancePDirections'*m_data;
+			[m_hist,v_centers] = hist(m_unconstrainedLaplacianProjections',40);
+			for k = 1:length(v_covariancePComponents)
+				leg{k} = sprintf('n = %d (\\lambda_n = %g)',k,v_covariancePComponents(k));
+			end			
+			F(2) = F_figure('Y',m_hist','X',v_centers','leg',leg,'tit','Histogram of energy distribution along PCs');
+            
+			% approximation of inverse covariance via unconstrained Laplacian			
+			m_covInv = inv(C);
+			m_unconstrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv);
+
+			% principal directions of unconstrained Laplacian
+			[m_unconstrainedLaplacianPDirections, v_unconstrainedLaplacianPComponents] = eig(m_unconstrainedLaplacian) ; 
+			v_unconstrainedLaplacianPComponents = diag(v_unconstrainedLaplacianPComponents);
+			
+
+			% approximation of inverse covariance via constrained Laplacian			
+			m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+
+			% principal directions of constrained Laplacian
+			[m_constrainedLaplacianPDirections, v_constrainedLaplacianPComponents] = eig(m_constrainedLaplacian) ; 
+			v_constrainedLaplacianPComponents = diag(v_constrainedLaplacianPComponents);
+			
+			
+			% energy of the data along the principal directions of the
+			% Laplacian
+			s_componentsNum = 5;
+			s_binNum = 15;
+			
+			m_covarianceProjections = m_covariancePDirections'*m_data;
+			m_covarianceProjections = m_covarianceProjections(end:-1:end-s_componentsNum+1,:);			
+			[m_histCovariance,v_covarianceCenters] = hist(m_covarianceProjections',s_binNum);
+						
+			m_unconstrainedLaplacianProjections = m_unconstrainedLaplacianPDirections'*m_data;
+			m_unconstrainedLaplacianProjections = m_unconstrainedLaplacianProjections(1:s_componentsNum,:);			
+			[m_histUnconstrained,v_unconstrainedCenters] = hist(m_unconstrainedLaplacianProjections',s_binNum);
+			
+			m_constrainedLaplacianProjections = m_constrainedLaplacianPDirections'*m_data;
+			m_constrainedLaplacianProjections = m_constrainedLaplacianProjections(1:s_componentsNum,:);			
+			[m_histConstrained,v_constrainedCenters] = hist(m_constrainedLaplacianProjections',s_binNum);
+			
+			
+			for k = 1:s_componentsNum
+				leg{k} = sprintf('Cov. n = %d (\\lambda_n = %g)',k,v_covariancePComponents(end-k+1));
+				leg{k+s_componentsNum} = sprintf('Unc. n = %d (\\lambda_n = %g)',k,v_unconstrainedLaplacianPComponents(k));
+				leg{k+2*s_componentsNum} = sprintf('Cons. n = %d (\\lambda_n = %g)',k,v_constrainedLaplacianPComponents(k));
+				styles{k} = '-';
+				styles{k+s_componentsNum} = '--';
+				styles{k+2*s_componentsNum} = '--x';
+			end			
+			Y = [m_histCovariance';m_histUnconstrained';m_histConstrained'];
+			X = [v_covarianceCenters';v_unconstrainedCenters';v_constrainedCenters'];
+			X = kron(X,ones(s_componentsNum,1));
+			
+			F(3) = F_figure('Y',Y,'X',X,'leg',leg,'tit','Histogram of energy distribution along PCs','colorp',s_componentsNum,'styles',styles);
+			
+		end
+        
+		
+		
+		
+		
+		% 1) Dorina's graphs ==============================================
+		
 		% visualization: graph construction just by Dorina's method (no
 		% constraints)
-		function F = compute_fig_5003(obj,niter)
+		function F = compute_fig_5101(obj,niter)
 			
 			% Graph construction parameters
 			s_niter=10;
@@ -1982,7 +2258,7 @@ classdef MultikernelSimulations < simFunctionSet
 		
 		% visualization: graph construction via a constrained versin of 
 		% Dorina's method
-		function F = compute_fig_5004(obj,niter)
+		function F = compute_fig_5102(obj,niter)
 			
 			% Graph construction parameters
 			s_niter=10;
@@ -2019,11 +2295,11 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 		
 			
-		% visualization: graph construction via a constrained versin of 
+		% visualization: graph construction via a constrained version of 
 		% Dorina's method
 		% Different from 5004, we now learn the graph using the first 15
 		% days and plot the signal Fourier transform in the second 15 days
-		function F = compute_fig_5005(obj,niter)
+		function F = compute_fig_5103(obj,niter)
 			
 			% Graph construction parameters
 			s_niter=10;
@@ -2063,8 +2339,8 @@ classdef MultikernelSimulations < simFunctionSet
 		
         
         
-        
-        function F = compute_fig_5006(obj,niter)
+        % Figure to test estimation using Dorina's graphs
+        function F = compute_fig_5104(obj,niter)
             % define parameters
 			s_nodeNum = 50;
             s_departureDelay = 1;
@@ -2202,8 +2478,98 @@ classdef MultikernelSimulations < simFunctionSet
             
             
             
-        end
+		end
         
+		
+		
+		% 2) Graphs from inverse covariance ===============================
+		
+		% Estimation test
+        function F = compute_fig_5200(obj,niter)
+            % define parameters
+			s_nodeNum = 15;
+            s_departureDelay = 1;
+			
+			% estimation parameters
+			s_mu = 1e-2;
+			s_numberOfSamples = 14;
+			
+			%%%%%%%%%%%%%%%%%%
+
+			% load data
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
+	
+debug = 1;
+if debug
+	m_training_data = [m_training_data m_test_data];
+end
+            m_adjacency = sum(m_training_adj,3);
+			m_adjacency = m_adjacency > 100;
+			
+			sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+
+if debug
+	m_cov = cov(m_normalized_training_data');
+end
+			
+			% generator and sampler
+			generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+			sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+			
+			% simulation
+			estimator = cov_estimator;
+			nmse = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+				
+				% estimate signal
+				v_signalEst = cov_estimator.estimate(v_samples,v_sampleLocations);				
+if debug
+	% LMMSE estimator
+	v_signalEst = m_cov(:,v_sampleLocations)*(  (m_cov(v_sampleLocations,v_sampleLocations) + 1*eye(length(v_sampleLocations)))\v_samples );	
+end
+				% measure error
+				v_unnormalized_signal = (v_std).*v_signal + v_mean;
+				v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+				
+				v_test_indices = 1:length(v_signal);
+				v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+				nmse(1,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2 /  norm( v_unnormalized_signal(v_test_indices)  )^2;
+				
+				unmse(1,s_itInd) = norm( v_signal(v_test_indices) - v_signalEst(v_test_indices) )^2 /  norm( v_signal(v_test_indices)  )^2;
+if debug
+	[v_signalEst v_signal]
+	[v_signalEst(v_test_indices) v_signal(v_test_indices)]
+end
+			end
+			
+			nmse = mean(nmse,2)
+			% average error
+if debug
+	unmse = mean(unmse,2)
+end
+			
+			
+			F = [];
+			
+		end
+        
+		
 		
 	end
 	
@@ -2543,16 +2909,16 @@ classdef MultikernelSimulations < simFunctionSet
             % s_departure_delay:   1: departure delay
             %                      0: arrival delay
             
-            
+            folder = 'libGF/datasets/AirportsDataset/';
             %% load dataset
-            load delaydata2014
+            load([folder 'delaydata2014'])
             depDelaySep2014 = delayData.depDelay{3};
             arrDelaySep2014 = delayData.arrDelay{3};
             airportListSep2014 = delayData.airportList{3};
             adjSep2014 = delayData.adjacency{3};                           
             
             %%            
-            load delaydata2015
+            load([folder 'delaydata2015'])
             depDelaySep2015 = delayData.depDelay{3};
             arrDelaySep2015 = delayData.arrDelay{3};
             airportListSep2015 = delayData.airportList{3};
@@ -2597,9 +2963,55 @@ classdef MultikernelSimulations < simFunctionSet
         end
 	
         
-        
-        
+		
+		function m_laplacian = approximateWithLaplacian(m_input,m_adjacency)
+			% m_laplacian is the best Laplacian matrix approximating matrix
+			% m_input in the Frobenius norm
+			% m_adjacency is an optional parameter. m_laplacian is such
+			% that m_laplacian(i,j) = 0 if m_adjacency(i,j) = 0  (i~=j)
+			%
+			s_nodeNum = size(m_input,1);
+			if nargin<2
+				m_adjacency = ones(s_nodeNum);
+			end
+			m_adjacency = m_adjacency + triu(ones(s_nodeNum));
+			m_mask = (m_adjacency == 0);
+			
+			cvx_begin
+			   variable L(s_nodeNum,s_nodeNum) symmetric
+			minimize( norm(L - m_input,'fro') )
+			subject to
+			   L*ones(s_nodeNum,1) == zeros(s_nodeNum,1);
+			   triu(L,1) <= 0;
+			   L(m_mask) == 0;
+			cvx_end
+			
+			m_laplacian = L;
+		end
+		
+		function m_covInv = learnInverseCov( m_sampleCov , m_adjacency )
+			% Learns the inverse covariance of a normal distribution 
+			% m_adjacency is optional. m_covInv is such
+			% that m_covInv(i,j) = 0 if m_covInv(i,j) = 0  (i~=j)If given, then 
+			% 
+			
+			d = size(m_sampleCov,1);
+			m_adjacency = m_adjacency + triu(ones(d));
+			m_mask = (m_adjacency == 0);
+			
+			cvx_begin
+			   variable S(d,d) symmetric
+			minimize( -log_det(S) +trace(S*m_sampleCov) )
+ 			subject to
+ 			   S(m_mask) == 0;
+			cvx_end
+			
+			m_covInv = S;
+			
+		end
+		
+		
 	end
-
+	
 	
 end
