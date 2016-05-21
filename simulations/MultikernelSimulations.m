@@ -2561,6 +2561,8 @@ classdef MultikernelSimulations < simFunctionSet
             
             % check
             %s = [sum(adjSep2014(1:100,1:10,:),3) sum(adjSep2015(1:100,1:10,:),3)]
+            
+            
            
             
 			%% select busiest airports
@@ -2583,7 +2585,76 @@ classdef MultikernelSimulations < simFunctionSet
             
         end
 	
+        function [ commonDelay1, commonDelay2, commonAdj1, commonAdj2] = getCommonData(delay1, adj1, airportList1, delay2, adj2, airportList2)
+            % s_selectedAirportNum: number of the most crowded airports
+            % that will be returned.
+            %
+            % s_departure_delay:   1: departure delay
+            %                      0: arrival delay
+            
+            %% Sort data in the same order
+            % 1. Find common airports
+            [v_commonAirports,commonInd1,commonInd2] = intersect( airportList1 , airportList2 );
+            %nn = norm(  airportListSep2014(v_inds2014) - airportListSep2015(v_inds2015))
+            
+            assert( isequal(v_commonAirports, airportList1(commonInd1)) );
+            
+            % 2. Sort data
+            commonDelay1 = delay1(commonInd1,:);
+            commonAdj1 = adj1(commonInd1,commonInd1,:);
+            
+            commonDelay2 = delay2(commonInd2,:);
+            commonAdj2 = adj2(commonInd2,commonInd2,:);
+            
+            % check
+            %s = [sum(adjSep2014(1:100,1:10,:),3) sum(adjSep2015(1:100,1:10,:),3)]       
+        end
         
+        function [commonList, indexCell]  = getCommonIndex( listCell )
+            commonList = listCell{1};
+            for i = 2 : length(listCell)
+                commonList = intersect(commonList, listCell{i});
+            end
+            
+            for i = 1 : length(listCell)
+                for k = 1 : length(commonList)
+                    index(k) = find( listCell{i} == commonList(k) );
+                end
+                indexCell{i} = index;
+            end
+        end
+        
+        function [comDepCell, comArrCell, comAdjCell] = get6monthData
+             %% load dataset
+            load delaydata2014
+            depDelay2014 = delayData.depDelay;
+            arrDelay2014 = delayData.arrDelay;
+            airportList2014 = delayData.airportList;
+            adj2014 = delayData.adjacency;          
+            %%            
+            load delaydata2015
+            depDelay2015 = delayData.depDelay;
+            arrDelay2015 = delayData.arrDelay;
+            airportList2015 = delayData.airportList;
+            adj2015 = delayData.adjacency;
+            
+            
+            %%
+            airportListCell = [airportList2014, airportList2015];
+            depDelayCell = [depDelay2014, depDelay2015];
+            arrDelayCell = [arrDelay2014, arrDelay2015];
+            adjCell = [adj2014, adj2015];
+            
+            %% find common airports and their index
+            [~, indexCell]  = MultikernelSimulations.getCommonIndex( airportListCell );
+            
+            %% get data
+            for i = 1 : length(indexCell)
+                comDepCell{i} = depDelayCell{i}(indexCell{i},:);
+                comArrCell{i} = arrDelayCell{i}(indexCell{i},:);
+                comAdjCell{i} = adjCell{i}(indexCell{i}, indexCell{i}, :);
+            end
+        end
         
         
 	end
