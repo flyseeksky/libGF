@@ -2742,8 +2742,96 @@ end
 			
 			F = [];
 			
-		end
+        end
         
+        
+        function F = compute_fig_5203(obj,niter)
+            % define parameters
+			s_nodeNum = 30;
+            s_departureDelay = 0;
+			
+			% estimation parameters
+			s_numberOfSamples = 10;
+            ref_lmmse = 0;
+			%%%%%%%%%%%%%%%%%%
+
+			% load data            
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+            m_adjacency = sum(m_training_adj,3);
+            m_adjacency = (m_adjacency+m_adjacency') /2;
+            m_adjacency = m_adjacency > 100;
+            
+            sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+			
+            % approximation of inverse covariance via constrained Laplacian			
+			%m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+			
+            
+			% generator and sampler
+            generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+            sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+		
+            
+            % estimators
+            s_mu = 1e-2;
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+          
+            s_muMKL = 1e-4;
+            s_sigma = sqrt(linspace(1,4,10));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel = kG.getKernelMatrix();
+            mkl_estimator = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel,'ch_type', 'kernel superposition');   % first 1
+            
+            
+            estimator = [cov_estimator;mkl_estimator];
+            % simulation
+			
+         	unnormalized_signal_mse = NaN(size(estimator,1),niter);			
+            unnormalized_signal_energy = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+                
+                v_test_indices = 1:length(v_signal);
+                v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+                for s_estimatorInd = 1:size(estimator,1)
+                    % estimate signal
+                    v_signalEst = estimator(s_estimatorInd).estimate(v_samples,v_sampleLocations);
+                    
+                    % revert normalization
+                    v_unnormalized_signal = (v_std).*v_signal + v_mean;
+                    v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+                    
+                    % measure error                    
+                    unnormalized_signal_mse(s_estimatorInd,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+                    unnormalized_signal_energy(s_estimatorInd,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
+                end
+			end
+			
+			% average error
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse ./ mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
+			
+			
+			F = [];
+			
+        end
         
         
 	end
