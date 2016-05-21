@@ -2067,18 +2067,96 @@ classdef MultikernelSimulations < simFunctionSet
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		% Real data simulation on Swiss temperature dataset
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		function F = compute_fig_7000(obj,niter)
+			% define parameters
+			max_iter = 1000;          % max iteration for learning laplacian
+			alpha = 1;
+			beta = 10;			      % alpha, beta paramters for learning laplacian
+			S_vec = 10:5:60;		  % for creating uniform sampler
+			B_vec = [2 4 6 -1];    % for creating BL estimator
+			mu = 1e-4;                % regularization parameter for MK estimator
+			SNR = Inf;
+			
+			% read temperature dataset and create the graph
+			% However, if the graph is already exists, then skip the process
+			addpath ./libGF/datasets/
+			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset();
+			if exist('learnedLaplacian.mat', 'file') == 2
+				load learnedLaplacian.mat
+				m_adjacency = Graph.createAdjacencyFromLaplacian(L);
+				graph = Graph('m_adjacency',m_adjacency);
+			else
+				% learn laplacian
+				% use old tempearature to learn graph laplacian
+				%gl = GraphLearningSmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				graph = gl.realization();
+			end
+			m_laplacian = graph.getLaplacian(); 
+				
+			%
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
+			sampler = sampler.replicate([],{},'s_numberOfSamples',num2cell(S_vec));		
+			%		
+			% BL graph function estimator
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+			
+			
+			% MKL function estimators
+			sigma1_vec = sqrt(linspace(1, 20 , 10));
+			sigma2_vec = sqrt([1 20]);
+            kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma1_vec));
+			m_kernel{1} = kG.getKernelMatrix();
+			kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec));
+			m_kernel{2} = kG.getKernelMatrix();
+			
+			mkl_estimator_RKHS = MkrGraphFunctionEstimator('s_regularizationParameter',mu);
+			mkl_estimator_RKHS = mkl_estimator_RKHS.replicate('m_kernel', m_kernel, [], {} );
+			
+			%mkl_estimator_kernel = MkrGraphFunctionEstimator('s_regularizationParameter',mu,'ch_type','kernel superposition');
+			%mkl_estimator_kernel = mkl_estimator_kernel.replicate('m_kernel', m_kernel, [], {} );
+			
+			mkl_estimator = [];
+			%
+			for i = 1:length(mkl_estimator_RKHS)
+				mkl_estimator_RKHS(i).c_replicatedVerticallyAlong = {'ch_name','legendString'};
+				mkl_estimator_replicated = mkl_estimator_RKHS(i).replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+				mkl_estimator = [mkl_estimator; mkl_estimator_replicated];
+			end	
+			est = [mkl_estimator;bl_estimator];
+			
+			%
+			% Simulation
+			nmse = zeros(length(est), length(sampler));
+			for i = 1:size(Hn,2)
+				generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Hn(:,i));
+				%generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Mn);
+				nmse = nmse + Simulate(generator, sampler, est, niter, true);
+				%res = Simulator.simStatistic(niter,generator,sampler,est);
+				%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			end
+			nmse = nmse / size(Hn,2);
+
+			% Representation			
+			F = F_figure('X',S_vec,...
+                'Y',nmse,'leg',Parameter.getLegend(generator,sampler, est),...
+                'xlab', 'sample size','ylimit',...
+				[0 1.1],'ylab','NMSE',...
+				'tit',sprintf('Temperature dataset mu=%g',mu));
+			
+        end
 		
-        % NMSE vs S for 
-        %   - 2 MKL with 10 kernels
-        %   - 2 MKL with 2 kernels
-        %   - LS
-        function F = compute_fig_7000(obj,niter)
+        % copy of 7000 to test parameters
+        function F = compute_fig_7001(obj,niter)
 			% define parameters
 			max_iter = 1000;          % max iteration for learning laplacian
 			alpha = 1;
 			beta = 30;	%150          % alpha, beta paramters for learning laplacian
 			S_vec = 10:5:60;		  % for creating uniform sampler
-			B_vec = [2 5 10 30 -1];    % for creating BL estimator
+			B_vec = [2 5 10 40 -1];    % for creating BL estimator
 			mu = 1e-4;                % regularization parameter for MK estimator
 			SNR = Inf;
 			
@@ -2093,8 +2171,8 @@ classdef MultikernelSimulations < simFunctionSet
 			else
 				% learn laplacian
 				% use old tempearature to learn graph laplacian
-				gl = GraphLearningSmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
-				%gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				%gl = GraphLearningSmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
 				graph = gl.realization();
 			end
 			m_laplacian = graph.getLaplacian(); 
@@ -2153,100 +2231,7 @@ classdef MultikernelSimulations < simFunctionSet
 				[0 1.1],'ylab','NMSE',...
 				'tit',sprintf('Temperature dataset mu=%g',mu));
 			
-        end
-        
-       
-        % NMSE vs S for 
-        %   - 2 MKL with 10 kernels
-        %   - 2 RR with 2 different kernels
-        %   - LS
-        function F = compute_fig_7001(obj,niter)
-			% define parameters
-			max_iter = 1000;          % max iteration for learning laplacian
-			alpha = 1;
-			beta = 30;	%150          % alpha, beta paramters for learning laplacian
-			S_vec = 10:5:60;		  % for creating uniform sampler
-			B_vec = [5 10 20 -1];    % for creating BL estimator
-			mu = 1e-4;                % regularization parameter for MK estimator
-			SNR = Inf;
-			
-			% read temperature dataset and create the graph
-			% However, if the graph is already exists, then skip the process
-			addpath ./libGF/datasets/
-			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset();
-			if (exist('learnedLaplacian.mat', 'file') == 2)
-				load learnedLaplacian.mat
-				m_adjacency = Graph.createAdjacencyFromLaplacian(L);
-				graph = Graph('m_adjacency',m_adjacency);
-			else
-				% learn laplacian
-				% use old tempearature to learn graph laplacian
-				gl = GraphLearningSmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
-				%gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
-				graph = gl.realization();
-			end
-			m_laplacian = graph.getLaplacian(); 
-            L = m_laplacian; save('learnedLaplacian.mat','L');
-				
-			%
-			% define graph function sampler
-			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
-			sampler = sampler.replicate([],{},'s_numberOfSamples',num2cell(S_vec));		
-			%		
-			% BL graph function estimator
-			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
-			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
-			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
-			
-			
-			% MKL function estimators
-			sigma1_vec = sqrt(linspace(1, 20, 10));
-			sigma2_vec = sqrt([1 2 5]);
-            kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma1_vec));
-			m_kernel1 = kG.getKernelMatrix();
-			kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec));
-			m_kernel2 = kG.getKernelMatrix();
-			
-			mkl_estimator_RKHS = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel1);   % first 1
-			%mkl_estimator_RKHS = mkl_estimator_RKHS.replicate('m_kernel', m_kernel, [], {} );
-			
-			%mkl_estimator_kernel = MkrGraphFunctionEstimator('s_regularizationParameter',mu,'ch_type','kernel superposition');
-			%mkl_estimator_kernel = mkl_estimator_kernel.replicate('m_kernel', m_kernel, [], {} );
-			
-			%mkl_estimator = [];
-			%
-			%for i = 1:length(mkl_estimator_RKHS)
-            mkl_estimator_RKHS.c_replicatedVerticallyAlong = {'ch_name','legendString'};
-            mkl_estimator_replicated = mkl_estimator_RKHS.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
-            
-            mkl_estimator_RR(1) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,1), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(1));
-            mkl_estimator_RR(2) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,2), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(2));
-            mkl_estimator_RR(3) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,3), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(3));
-            %mkl_estimator = [mkl_estimator; mkl_estimator_replicated];
-			%end	
-			est = [mkl_estimator_replicated;mkl_estimator_RR';bl_estimator];
-			
-			%
-			% Simulation
-			nmse = zeros(length(est), length(sampler));
-			for i = 1:size(Hn,2)
-				generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Hn(:,i));
-				%generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Mn);
-				nmse = nmse + Simulate(generator, sampler, est, niter, true);
-				%res = Simulator.simStatistic(niter,generator,sampler,est);
-				%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
-			end
-			nmse = nmse / size(Hn,2);
-
-			% Representation			
-			F = F_figure('X',S_vec,...
-                'Y',nmse,'leg',Parameter.getLegend(generator,sampler, est),...
-                'xlab', 'sample size','ylimit',...
-				[0 1.1],'ylab','NMSE',...
-				'tit',sprintf('Temperature dataset mu=%g',mu));
-			
-        end
-        
+		end
         
 		% find the sigma range for temperature dataset
 		function F = compute_fig_7010(obj,niter)

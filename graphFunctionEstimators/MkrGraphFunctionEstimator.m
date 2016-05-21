@@ -7,9 +7,9 @@ classdef MkrGraphFunctionEstimator < KernelGraphFunctionEstimator
 % 		c_stringToPrint  = {'', '','\mu',''};
 % 		c_patternToPrint = {'%s%s','%s%s','%s = %g','%s%s'};
 % =======
-        c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter'};
-		c_stringToPrint  = {'', '','','\mu'};
-		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s = %g'};
+        c_parsToPrint  = {'ch_name', 'legendString','ch_type','s_regularizationParameter','m_kernel'};
+		c_stringToPrint  = {'', '','','\mu',''};
+		c_patternToPrint = {'%s%s', '%s%s','%s%s','%s = %g','%s%s'};
 %>>>>>>> 1ed5d407b0079214c6e868b987daeb2d96beb25a
     end
     
