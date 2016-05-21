@@ -1,7 +1,8 @@
 %
 %  FIGURES FOR THE PAPER ON MULTIKERNEL
 %
-%  TSP paper figures: 1006, 3100 (print 3108), 3402 (print 3404), 3232
+%  TSP paper figures: 1006, 3100 (print 3108), 3402 (print 3404), 3232,
+%  7001(print 7002)
 %  (table), 3234
 %3305
 %
@@ -1765,12 +1766,14 @@ classdef MultikernelSimulations < simFunctionSet
 			%save('1.mat')
 			F = [];
 		end
+	
 		
-		
-		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		% %%  5. airports
-		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		
+	end
+	
+	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% %%  5. airports
+	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	methods
 		% Check graph construction code
 		function F = compute_fig_5000(obj,niter)
 			
@@ -2062,11 +2065,11 @@ classdef MultikernelSimulations < simFunctionSet
 		
 	end
 	
-	
+	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% 7. Real data simulation on Swiss temperature dataset
+	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	methods
-		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		% Real data simulation on Swiss temperature dataset
-		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
 		
         % NMSE vs S for 
         %   - 2 MKL with 10 kernels
@@ -2245,9 +2248,19 @@ classdef MultikernelSimulations < simFunctionSet
 				[0 1.1],'ylab','NMSE',...
 				'tit',sprintf('Temperature dataset mu=%g',mu));
 			
-        end
+		end
         
-        
+        % Print version of 7001
+		function F = compute_fig_7002(obj,niter)
+			 F = obj.load_F_structure(7001);
+			 F.styles = {'-^','-v','--o','--s','--d','-.*','-.x','-.+','-.p'};
+			 F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Ass. B = cut-off freq.,','cut-off';...
+				 'Bandlimited, Ass.','BL for';'Multi-kernel, 1 kernel,','KRR,';'10 kernels,','';', KS','';'5,','5';'10,','10'};
+			 F.tit = '';
+			 F.xlab = 'Sample size (S)';
+		 end
+		
+		
 		% find the sigma range for temperature dataset
 		function F = compute_fig_7010(obj,niter)
 			
