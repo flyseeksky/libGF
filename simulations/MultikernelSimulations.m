@@ -2059,9 +2059,151 @@ classdef MultikernelSimulations < simFunctionSet
 			G.plotFourierTransform(Ho_second_half)
 			[counts,bins]= hist(G.m_adjacency(:),100);
 			F = F_figure('X',bins,'Y',counts/sum(counts),'plot_type_2D','bar');
-		end
+        end
 		
-	
+        
+        
+        
+        function F = compute_fig_5006(obj,niter)
+            % define parameters
+			s_nodeNum = 50;
+            s_departureDelay = 1;
+                       
+            max_iter = 1000;          % max iteration for learning laplacian
+			alpha = 1/100;
+			beta = 500/100;	%150          % alpha, beta paramters for learning laplacian
+			S_vec = 10:2:30;		  % for creating uniform sampler
+			B_vec = [5 10 20 -1];    % for creating BL estimator
+			mu = 1e-1;                % regularization parameter for MK estimator
+			SNR = Inf;
+            s_verbose = 1;
+                       
+            
+            [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);
+             
+            %
+            
+			% read temperature dataset and create the graph
+			% However, if the graph is already exists, then skip the process
+			
+			
+            %[m_training_delay,Mo,Alto,m_test_delay,Mn,Altn] = readTemperatureDataset();
+            filename = 'airportLaplacian.mat';
+			if (exist(filename, 'file') == 2)
+				 load(filename,'g_graph')				
+				%graph = Graph('m_adjacency',Graph.createAdjacencyFromLaplacian(L));
+			else
+				% learn laplacian
+				% use old tempearature to learn graph laplacian
+				gl = GraphLearningSmoothSignalGraphGenerator('m_observed', m_training_delay, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				%gl = SmoothSignalGraphGenerator('m_observed', Ho, 's_niter', max_iter, 's_alpha', alpha, 's_beta', beta);
+				g_graph = gl.realization();
+                save(filename,'g_graph');
+			end
+			m_laplacian = g_graph.getLaplacian(); 
+            
+            graph_sparsity = 2*sum(sum( g_graph.m_adjacency ~= 0 ))/size(g_graph.m_adjacency,1)^2
+            
+			if s_verbose
+                figure(1)
+                hist(g_graph.m_adjacency(:),50);
+
+                figure(2)
+                g_graph.plotFourierTransform(m_training_delay);
+                subplot(2,1,1);title('training data')
+                                
+                figure(3)
+                g_graph.plotFourierTransform(m_test_delay);
+                subplot(2,1,1);title('test data')
+                
+                s_componentsNum = size(m_laplacian,1)-rank(m_laplacian)
+                pause()
+            end
+			%
+			% define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);
+			sampler = sampler.replicate([],{},'s_numberOfSamples',num2cell(S_vec));		
+			%		
+			% BL graph function estimator
+			%bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',g_graph.getLaplacian);			
+			%bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			%bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+			
+			s_case = 1;
+            switch s_case
+                case 1
+                    % MKL function estimators
+                    c_sigma = {sqrt(linspace(200, 400, 30)),sqrt(linspace(.01, 1, 30)),sqrt(linspace(50, 100, 10)),sqrt(linspace(100, 200, 10))};
+                    for k = 1:length(c_sigma)
+                        kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(c_sigma{k}));
+                        m_kernel1 = kG.getKernelMatrix();
+                        mkl_estimator(k,1) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
+                        leg{k} = sprintf('k = %d',k);
+                    end
+                case 2
+                    v_mu = 10.^(-8:0);
+                    c_sigma = sqrt(linspace(100, 200, 10));
+                    kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(c_sigma));
+                    m_kernel1 = kG.getKernelMatrix();
+                    for k = 1:length(v_mu)                        
+                        mkl_estimator(k,1) = MkrGraphFunctionEstimator('s_regularizationParameter',v_mu(k), 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
+                        leg{k} = sprintf('k = %d',k);
+                    end
+                    
+            end
+            
+            
+            
+            
+            
+%             sigma2_vec = sqrt([1 2 5]);
+% 			kG = LaplacianKernel('m_laplacian',m_laplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(sigma2_vec));
+% 			m_kernel2 = kG.getKernelMatrix();
+% 			
+% 			
+% 			%mkl_estimator_RKHS = mkl_estimator_RKHS.replicate('m_kernel', m_kernel, [], {} );
+% 			
+% 			%mkl_estimator_kernel = MkrGraphFunctionEstimator('s_regularizationParameter',mu,'ch_type','kernel superposition');
+% 			%mkl_estimator_kernel = mkl_estimator_kernel.replicate('m_kernel', m_kernel, [], {} );
+% 			
+% 			%mkl_estimator = [];
+% 			%
+% 			%for i = 1:length(mkl_estimator_RKHS)
+%             mkl_estimator_RKHS.c_replicatedVerticallyAlong = {'ch_name','legendString'};
+%             mkl_estimator_replicated = mkl_estimator_RKHS.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+%             
+%             mkl_estimator_RR(1) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,1), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(1));
+%             mkl_estimator_RR(2) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,2), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(2));
+%             mkl_estimator_RR(3) = MkrGraphFunctionEstimator('s_regularizationParameter',mu, 'm_kernel', m_kernel2(:,:,3), 'ch_type', 'kernel superposition', 's_sigma', sigma2_vec(3));
+%             %mkl_estimator = [mkl_estimator; mkl_estimator_replicated];
+			%end	
+			%est = [mkl_estimator_replicated;mkl_estimator_RR';bl_estimator];
+			est = mkl_estimator;
+ m_test_delay = m_training_delay;           
+			%
+			% Simulation
+			nmse = zeros(length(est), length(sampler));
+			for i = 1:size(m_test_delay,2)
+				generator = FixedGraphFunctionGenerator('graph',g_graph, 'graphFunction', m_test_delay(:,i));
+				%generator = FixedGraphFunctionGenerator('graph',graph, 'graphFunction', Mn);
+				nmse = nmse + Simulate(generator, sampler, est, niter, true);
+				%res = Simulator.simStatistic(niter,generator,sampler,est);
+				%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			end
+			nmse = nmse / size(m_test_delay,2);
+
+			% Representation	
+           % leg = Parameter.getLegend(generator,sampler, est);
+			F = F_figure('X',S_vec,...
+                'Y',nmse,'leg',leg,...
+                'xlab', 'sample size','ylimit',...
+				[0 1.1],'ylab','NMSE',...
+				'tit',sprintf('Airports dataset mu=%g',mu));
+            
+            
+            
+        end
+        
 		
 	end
 	
@@ -2393,6 +2535,70 @@ classdef MultikernelSimulations < simFunctionSet
                 100*(iCol+(iRow-1)*COL)/(ROW*COL) );
         end
 		
+        
+        function [ m_training_delay, m_test_delay, m_training_adj , m_test_adj ] = getTwoMonths(s_selectedAirportNum,s_departureDelay)
+            % s_selectedAirportNum: number of the most crowded airports
+            % that will be returned.
+            %
+            % s_departure_delay:   1: departure delay
+            %                      0: arrival delay
+            
+            
+            %% load dataset
+            load delaydata2014
+            depDelaySep2014 = delayData.depDelay{3};
+            arrDelaySep2014 = delayData.arrDelay{3};
+            airportListSep2014 = delayData.airportList{3};
+            adjSep2014 = delayData.adjacency{3};                           
+            
+            %%            
+            load delaydata2015
+            depDelaySep2015 = delayData.depDelay{3};
+            arrDelaySep2015 = delayData.arrDelay{3};
+            airportListSep2015 = delayData.airportList{3};
+            adjSep2015 = delayData.adjacency{3};
+            
+            %% Sort data in the same order
+            % 1. Find common airports
+            [v_commonAirports,v_inds2014,v_inds2015] = intersect( airportListSep2014 , airportListSep2015 );
+            %nn = norm(  airportListSep2014(v_inds2014) - airportListSep2015(v_inds2015))
+                                 
+            % 2. Sort data
+            depDelaySep2014 = depDelaySep2014(v_inds2014,:);
+            arrDelaySep2014 = arrDelaySep2014(v_inds2014,:);
+            adjSep2014 = adjSep2014(v_inds2014,v_inds2014,:);
+            
+            depDelaySep2015 = depDelaySep2015(v_inds2015,:);
+            arrDelaySep2015 = arrDelaySep2015(v_inds2015,:);
+            adjSep2015 = adjSep2015(v_inds2015,v_inds2015,:);
+            
+            % check
+            %s = [sum(adjSep2014(1:100,1:10,:),3) sum(adjSep2015(1:100,1:10,:),3)]
+           
+            
+			%% select busiest airports
+			A = sum(adjSep2014,3);			
+			[~,v_inds] = sort(sum(A,2),'descend');
+			v_inds = v_inds(1:s_selectedAirportNum); % indices of the most crowded airports
+			
+            if s_departureDelay            
+                m_training_delay = depDelaySep2014(v_inds,:);
+                m_test_delay = depDelaySep2015(v_inds,:);              
+            else                
+                m_training_delay = arrDelaySep2014(v_inds,:);
+                m_test_delay = arrDelaySep2015(v_inds,:);                
+            end
+            m_training_adj = adjSep2014(v_inds,v_inds,:);
+            m_test_adj = adjSep2015(v_inds,v_inds,:);   
+            
+            %m_cov = cov([m_training_delay m_test_delay]')
+            
+            
+        end
+	
+        
+        
+        
 	end
 
 	
