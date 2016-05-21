@@ -13,7 +13,7 @@ classdef AirportGraphGenerator < GraphGenerator
     end
     
     properties
-        ch_filepath = {'2014/Jul2014.csv', '2014/Aug2014.csv', '2014/Sep2014.csv'};   % path to data file
+        ch_filepath = {'2015/Jul2015.csv', '2015/Aug2015.csv', '2015/Sep2015.csv'};   % path to data file
         airportTable = [];       % table that contains raw data
         delayTable;         % a table that each entry contains the average 
                             % delay of one day and one airport
@@ -52,13 +52,13 @@ classdef AirportGraphGenerator < GraphGenerator
                 adj{iPath} = adjacency;
             end
             %%
-            delayData.year = '2014';
+            delayData.year = '2015';
             delayData.month = {'Jul','Aug','Sep'};
             delayData.depDelay = depDelay;
             delayData.arrDelay = arrDelay;
             delayData.airportList = airportList;
             delayData.adjacency = adj;
-            save('delaydata2014.mat', 'delayData')
+            save('delaydata2015.mat', 'delayData')
             
         end
         

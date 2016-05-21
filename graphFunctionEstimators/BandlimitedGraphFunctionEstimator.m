@@ -121,6 +121,7 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 				end
 				
 				m_PhiB = m_eigenvecs( m_positions(:,iRealization) , : );
+                if rcond(m_PhiB)<1e-10
 				v_alphas = m_PhiB\m_samples(:,iRealization);
 				m_estimate(:,iRealization) = m_eigenvecs*v_alphas;
 			end

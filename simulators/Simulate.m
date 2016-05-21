@@ -59,7 +59,7 @@ else
     end
 end
 
-NMSE = mean(v_nmse);
+NMSE = median(v_nmse);
 
 end
 
