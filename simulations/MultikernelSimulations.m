@@ -2788,13 +2788,22 @@ end
 			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
           
             s_muMKL = 1e-4;
-            s_sigma = sqrt(linspace(1,4,10));
+            s_sigma = sqrt(linspace(1,4,20));
             kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
-            m_kernel = kG.getKernelMatrix();
-            mkl_estimator = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel,'ch_type', 'kernel superposition');   % first 1
+            m_kernel1 = kG.getKernelMatrix();
+            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
             
+            s_sigma = sqrt(linspace(0.1,4,30));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel2 = kG.getKernelMatrix();
+            mkl_estimator2 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel2,'ch_type', 'kernel superposition');
             
-            estimator = [cov_estimator;mkl_estimator];
+            % BL estimator
+            bandwidth_vec = [1 3 -1];
+            bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian', m_constrainedLaplacian);
+            bl_estimator = bl_estimator.replicate('s_bandwidth', num2cell(bandwidth_vec), [], {});
+            
+            estimator = [cov_estimator;mkl_estimator1;mkl_estimator2; bl_estimator];
             % simulation
 			
          	unnormalized_signal_mse = NaN(size(estimator,1),niter);			
