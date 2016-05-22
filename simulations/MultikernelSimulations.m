@@ -2631,7 +2631,7 @@ end
         function F = compute_fig_5201(obj,niter)
             % define parameters
 			s_nodeNum = 30;
-            s_departureDelay = 1;
+            s_departureDelay = 0;
 			
 			% estimation parameters
 			s_mu = 1e-2;
@@ -2643,10 +2643,7 @@ end
 			
 			[ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
 			
-			
-    %        [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getTwoMonths(s_nodeNum,s_departureDelay);             
-	
-debug = 1;
+debug = 0;
 if debug
 	%m_training_data = [m_training_data m_test_data];
 end
@@ -2676,7 +2673,7 @@ end
 			
 			% simulation
 			estimator = cov_estimator;
-			mse = NaN(size(estimator,1),niter);			
+			normalized_signal_mse = NaN(size(estimator,1),niter);			
 			for s_itInd = 1:niter				
 				% generate signal
 				v_signal = generator.realization();
@@ -2688,35 +2685,347 @@ end
 				v_signalEst = cov_estimator.estimate(v_samples,v_sampleLocations);				
 if debug
 	% LMMSE estimator
-	v_signalEst = m_cov(:,v_sampleLocations)*(  (m_cov(v_sampleLocations,v_sampleLocations) + 1e-10*eye(length(v_sampleLocations)))\v_samples );	
+	v_signalEst = m_cov(:,v_sampleLocations)*(  (m_cov(v_sampleLocations,v_sampleLocations) + 1e-100*eye(length(v_sampleLocations)))\v_samples );	
 end
-				% measure error
+				% revert normalization
 				v_unnormalized_signal = (v_std).*v_signal + v_mean;
 				v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
 				
+                % measure error
 				v_test_indices = 1:length(v_signal);
 				v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
-				mse(1,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2 ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+				unnormalized_signal_mse(1,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+				unnormalized_signal_energy(1,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
 				
-				umse(1,s_itInd) = norm( v_signal(v_test_indices) - v_signalEst(v_test_indices) )^2; %/  norm( v_signal(v_test_indices)  )^2;
+                normalized_signal_mse(1,s_itInd) = norm( v_signal(v_test_indices) - v_signalEst(v_test_indices) )^2/(length(v_test_indices)); %/  norm( v_signal(v_test_indices)  )^2;
+                normalized_signal_energy(1,s_itInd) =  norm( v_signal(v_test_indices)  )^2/(length(v_test_indices));
+                
 if debug
-	[v_signalEst v_signal]
-	[v_signalEst(v_test_indices) v_signal(v_test_indices)]
+%	[v_signalEst v_signal]
+%	[v_signalEst(v_test_indices) v_signal(v_test_indices)]
 end
 			end
 			
-			mse = mean(mse,2)
+			normalized_signal_mse = mean(normalized_signal_mse,2) 
+            normalized_signal_nmse = normalized_signal_mse / mean(normalized_signal_energy,2)
 			% average error
-if debug
-	umse = mean(umse,2)
-end
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse / mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
 			
 			
 			F = [];
 			
-		end
+        end
         
 		
+        % Estimation test with more estimators
+        function F = compute_fig_5202(obj,niter)
+            % define parameters
+			s_nodeNum = 30;
+            s_departureDelay = 0;
+			
+			% estimation parameters
+			s_mu = 1e-2;
+			s_numberOfSamples = 10;
+            ref_lmmse = 0;
+			%%%%%%%%%%%%%%%%%%
+
+			% load data            
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+            m_adjacency = sum(m_training_adj,3);
+            m_adjacency = (m_adjacency+m_adjacency') /2;
+            m_adjacency = m_adjacency > 100;
+            
+            sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+			
+            % approximation of inverse covariance via constrained Laplacian			
+			%m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+			
+            
+			% generator and sampler
+			generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+			sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+            
+            % estimators
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+            
+			% simulation
+			estimator = cov_estimator;
+			normalized_signal_mse = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+                
+                % estimate signal
+                v_signalEst = cov_estimator.estimate(v_samples,v_sampleLocations);
+                if ref_lmmse
+                    % LMMSE estimator
+                    v_signalEst = m_cov(:,v_sampleLocations)*(  (m_cov(v_sampleLocations,v_sampleLocations) + 1e-100*eye(length(v_sampleLocations)))\v_samples );
+                end
+                % revert normalization
+                v_unnormalized_signal = (v_std).*v_signal + v_mean;
+                v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+				
+                % measure error
+				v_test_indices = 1:length(v_signal);
+				v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+				unnormalized_signal_mse(1,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+				unnormalized_signal_energy(1,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
+				               
+			end
+			
+			% average error
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse / mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
+			
+			
+			F = [];
+			
+        end
+        
+        
+        function F = compute_fig_5203(obj,niter)
+            % define parameters
+			s_nodeNum = 30;
+            s_departureDelay = 0;
+			
+			% estimation parameters
+			s_numberOfSamples = 10;
+            ref_lmmse = 0;
+			%%%%%%%%%%%%%%%%%%
+
+			% load data            
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+            m_adjacency = sum(m_training_adj,3);
+            m_adjacency = (m_adjacency+m_adjacency') /2;
+            m_adjacency = m_adjacency > 100;
+            
+            sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+			
+            % approximation of inverse covariance via constrained Laplacian			
+			%m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+			
+            
+			% generator and sampler
+            generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+            sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+		
+            
+            % estimators
+            s_mu = 1e-2;
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+          
+            s_muMKL = 1e-4;
+            s_sigma = sqrt(linspace(1,4,20));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel1 = kG.getKernelMatrix();
+            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
+            
+            s_sigma = sqrt(linspace(0.1,7,30));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel2 = kG.getKernelMatrix();
+            mkl_estimator2 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel2,'ch_type', 'kernel superposition');
+            
+            % BL estimator
+            bandwidth_vec = [1 3 -1];
+            bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian', m_constrainedLaplacian);
+            bl_estimator = bl_estimator.replicate('s_bandwidth', num2cell(bandwidth_vec), [], {});
+            
+            estimator = [cov_estimator;mkl_estimator1;mkl_estimator2; bl_estimator];
+            % simulation
+			
+         	unnormalized_signal_mse = NaN(size(estimator,1),niter);			
+            unnormalized_signal_energy = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+                
+                v_test_indices = 1:length(v_signal);
+                v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+                for s_estimatorInd = 1:size(estimator,1)
+                    % estimate signal
+                    v_signalEst = estimator(s_estimatorInd).estimate(v_samples,v_sampleLocations);
+                    
+                    % revert normalization
+                    v_unnormalized_signal = (v_std).*v_signal + v_mean;
+                    v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+                    
+                    % measure error                    
+                    unnormalized_signal_mse(s_estimatorInd,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+                    unnormalized_signal_energy(s_estimatorInd,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
+                end
+			end
+			
+			% average error
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse ./ mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
+			
+			
+			F = [];
+			
+        end
+        
+        function F = compute_fig_5204(obj,niter)
+            % define parameters
+			s_nodeNum = 50;
+            s_departureDelay = 0;
+			
+			% estimation parameters
+			s_numberOfSamples = 10;
+            ref_lmmse = 0;
+			%%%%%%%%%%%%%%%%%%
+
+			% load data            
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+            m_adjacency = sum(m_training_adj,3);
+            m_adjacency = (m_adjacency+m_adjacency') /2;
+            m_adjacency = m_adjacency > 100;
+            
+            sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+			
+            % approximation of inverse covariance via constrained Laplacian			
+			%m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+			
+            
+			% generator and sampler
+            generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+            sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+		
+            
+            % estimators
+            s_mu = 1e-3;
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+          
+            s_muMKL = 1e-4;
+            s_sigma = sqrt(linspace(1,4,20));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel1 = kG.getKernelMatrix();
+            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
+            
+            s_sigma = sqrt(linspace(0.1,7,30));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel2 = kG.getKernelMatrix();
+            mkl_estimator2 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel2,'ch_type', 'kernel superposition');
+            
+            % BL estimator
+            bandwidth_vec = [1 3 8 -1];
+            bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian', m_constrainedLaplacian);
+            bl_estimator = bl_estimator.replicate('s_bandwidth', num2cell(bandwidth_vec), [], {});
+            
+            estimator = [cov_estimator;mkl_estimator1;mkl_estimator2; bl_estimator];
+            % simulation
+			
+         	unnormalized_signal_mse = NaN(size(estimator,1),niter);			
+            unnormalized_signal_energy = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+                
+                v_test_indices = 1:length(v_signal);
+                v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+                for s_estimatorInd = 1:size(estimator,1)
+                    % estimate signal
+                    v_signalEst = estimator(s_estimatorInd).estimate(v_samples,v_sampleLocations);
+                    
+                    % revert normalization
+                    v_unnormalized_signal = (v_std).*v_signal + v_mean;
+                    v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+                    
+                    % measure error                    
+                    unnormalized_signal_mse(s_estimatorInd,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+                    unnormalized_signal_energy(s_estimatorInd,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
+                end
+			end
+			
+			% average error
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse ./ mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
+            
+            %%
+            % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			% print the table into a tex file
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			fid = fopen('libGF/simulations/MultikernelSimulations_data/airport.tex','w');
+			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(estimator))));     % heading line
+			fprintf(fid, '\t\\hline\n\t');
+			fprintf(fid, 'RR with cov & MKL1 & MKL2 & BL1 & BL2 & BL3\\\\\n');
+			fprintf(fid, '\t\\hline\n\t');
+			
+			% print NMSE
+			fprintf(fid, 'NMSE\t');
+			for i = 1:length(estimator)
+				fprintf(fid, ' & %2.2f', unnormalized_signal_nmse(i));
+			end
+			fprintf(fid, '\\\\\n\tRMSE(min)\t');
+			% print variance
+			for i = 1:length(estimator)
+				fprintf(fid, ' & %2.2f', rmse_in_minutes(i));
+			end
+			fprintf(fid, '\\\\\n');
+			fprintf(fid, '\t\\hline\n');
+			fprintf(fid, '\\end{tabular}');		% bottom line
+			%caption = Parameter.getTitle(graphGenerator,functionGenerator,sampler,estimator);
+			%fprintf(fid, caption);
+            
+            fclose(fid);
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			
+			
+			F = [];
+			
+        end
+        
+        
 	end
 	
 	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
