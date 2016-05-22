@@ -2885,10 +2885,10 @@ end
 			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
           
             s_muMKL = 1e-4;
-            s_sigma = sqrt(linspace(1,4,20));
+            s_sigma = sqrt(linspace(0.1,7,30));
             kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
             m_kernel1 = kG.getKernelMatrix();
-            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'kernel superposition');   % first 1
+            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'RKHS superposition');   % first 1
             
             s_sigma = sqrt(linspace(0.1,7,30));
             kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
@@ -2941,7 +2941,7 @@ end
 			fid = fopen('libGF/simulations/MultikernelSimulations_data/airport.tex','w');
 			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(estimator))));     % heading line
 			fprintf(fid, '\t\\hline\n\t');
-			fprintf(fid, 'RR with cov & MKL1 & MKL2 & BL1 & BL2 & BL3\\\\\n');
+			fprintf(fid, 'RR with cov & MKL1 & MKL2 & BL1 & BL2 & BL3 & BL4\\\\\n');
 			fprintf(fid, '\t\\hline\n\t');
 			
 			% print NMSE
