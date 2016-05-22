@@ -9,6 +9,9 @@ function NMSE = Simulate( generator, sampler, estimator, MONTE_CARLO, testSetOnl
 %       NMSE            normalized mean squared error, whose size is
 %                       consistent with generator/sampler/estimator
 %
+if nargin < 5
+	testSetOnly = 0;
+end
 
 DEBUG = true;
 
@@ -37,10 +40,15 @@ end
 
 function NMSE = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO, testSetOnly )
 % Monte Carlo simulation
-v_nmse = NaN(MONTE_CARLO,1);
+
 %parfor iMonte = 1:MONTE_CARLO
 %m_graphFunction = generator.realization();
+if nargin < 5
+	testSetOnly = 0;
+end
+
 if testSetOnly
+	v_nmse = NaN(MONTE_CARLO,1);
     for iMonte = 1:MONTE_CARLO
         m_graphFunction = generator.realization();
         [m_samples, m_positions] = sampler.sample(m_graphFunction);
@@ -49,17 +57,23 @@ if testSetOnly
         testSetIndex(m_positions) = false;
         v_nmse(iMonte) = norm(m_estimate(testSetIndex) - m_graphFunction(testSetIndex))^2 / ...
             norm(m_graphFunction(testSetIndex))^2;
-    end
+	end
+	NMSE = mean(v_nmse);
 else
+	v_nmse_num = NaN(MONTE_CARLO,1);
+	v_nmse_den = NaN(MONTE_CARLO,1);
     parfor iMonte = 1:MONTE_CARLO
         m_graphFunction = generator.realization();
         [m_samples, m_positions] = sampler.sample(m_graphFunction);
         m_estimate = estimator.estimate(m_samples, m_positions);
-        v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;
-    end
+        %v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;
+		v_nmse_num(iMonte) = norm(m_estimate - m_graphFunction)^2;
+		v_nmse_den(iMonte) = norm(m_graphFunction)^2;
+	end
+	NMSE = mean(v_nmse_num)/mean(v_nmse_den);
 end
 
-NMSE = mean(v_nmse);
+
 
 end
 

@@ -1635,7 +1635,8 @@ classdef MultikernelSimulations < simFunctionSet
 		% print version of 3402
 		function F = compute_fig_3404(obj,niter)
 			F = obj.load_F_structure(3402);
-			F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Bandlimited','BL';'Ass. B = cut-off freq.','cut-off'};
+			F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Bandlimited','BL';'Ass. B = cut-off freq.','cut-off'; ...
+				'BL, Ass.','BL for'};
 			F.leg_pos = 'northeast';
 		end
 		
@@ -1694,6 +1695,62 @@ classdef MultikernelSimulations < simFunctionSet
 			
 		end
 		
+		
+		% Like 3402 but with uniform BL signals
+		function F = compute_fig_3406(obj,niter)
+						
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the true function
+			B_vec = [10 20 30 -1]; % assumed bandwidth for estimation
+			SNR = 10; % dB
+			S_vec = 10:5:100;
+			
+			s_beta = 1e4; % amplitude parameter of the bandlimited kernel
+			v_B_values = 10:5:30; % bandwidth parameter for the bandlimited kernel
+						
+			% 1. define graph function generator
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.25 ,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B,'ch_distribution','uniform');
+			%graphFunction = bandlimitedFunctionGenerator.realization();
+			%generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+			
+			% 2. define graph function sampler
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
+			sampler = sampler.replicate('',[],'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. BL graph function estimator
+			bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian);			
+			bl_estimator.c_replicatedVerticallyAlong = {'ch_name'};
+			bl_estimator = bl_estimator.replicate('s_bandwidth',num2cell(B_vec),'',{});
+								
+			% 4. MKL function estimators	
+			% 4. generate Kernel matrix
+			kG = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',LaplacianKernel.bandlimitedKernelFunctionHandle(graph.getLaplacian(),v_B_values,s_beta));			
+			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
+			%mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2,'ch_type','RKHS superposition');
+			mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',.05,'ch_type','RKHS superposition');
+			%mkl_estimator(4,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-3,'ch_type','RKHS superposition');
+			mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',.01,'ch_type','kernel superposition');
+			mkl_estimator(1,1).c_replicatedVerticallyAlong = {'ch_name','ch_type'};			
+			mkl_estimator(2,1).c_replicatedVerticallyAlong = {'ch_name','ch_type'};			
+			%mkl_estimator = mkl_estimator.replicate('ch_type',{'RKHS superposition','kernel superposition'},'',[]);
+            est = [mkl_estimator;bl_estimator];
+			
+
+			% Simulation
+			%res = Simulator.simStatistic(niter,generator,sampler,est);
+			%mse = Simulator.computeNmse(res,Results('stat',graphFunction));
+			mse =  Simulate(generator,sampler,est,niter);
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',Parameter.getLegend(generator,sampler,est),'leg_pos','northwest',...
+                'xlab','Number of observed vertices (S)','ylimit',[0 1.5],'xlimit',[min(Parameter.getXAxis(generator,sampler,est)),max(Parameter.getXAxis(generator,sampler,est))],...
+				'ylab','NMSE','caption',Parameter.getTitle(graphGenerator,generator,sampler,est),'styles',{'-v','-^','--x','--o','--s','-.'});
+			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+			
+		end
 		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2852,7 +2909,7 @@ end
 			 F = obj.load_F_structure(7001);
 			 F.styles = {'-^','-v','--o','--s','--d','-.*','-.x','-.+','-.p'};
 			 F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Ass. B = cut-off freq.,','cut-off';...
-				 'Bandlimited, Ass.','BL for';'Multi-kernel, 1 kernel,','KRR,';'10 kernels,','';', KS','';'5,','5';'10,','10'};
+				 'Bandlimited, Ass.','BL for';'Multi-kernel, 1 kernel,','KRR,';'10 kernels,','';', KS','';'5,','5';'10,','10';'Bandlimited','BL'};
 			 F.tit = '';
 			 F.xlab = 'Sample size (S)';
 		 end
