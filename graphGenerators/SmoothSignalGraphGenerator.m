@@ -19,14 +19,14 @@ classdef SmoothSignalGraphGenerator < GraphGenerator
     properties(Constant)
         ch_name = 'Learn Graph from signals';
 		DEBUG = true; % set this paramter to true for debug information
-        CVX = false;  % set CVX=true to use cvx for solving this problem
+        CVX = true;  % set CVX=true to use cvx for solving this problem
     end
     
     properties
         m_observed;             % observed signals on some graph
         s_niter = 1000;       % maximum number of iterations
 		s_alpha = 1;            % regularization parameter: alpha*tr(Y'LY)
-        s_beta = 1;           % regularization: beta * norm(Y,'fro')^2
+        s_beta = 100;           % regularization: beta * norm(Y,'fro')^2
     end
     
     

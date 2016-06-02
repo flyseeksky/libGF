@@ -1,4 +1,4 @@
-function NMSE = Simulate( generator, sampler, estimator, MONTE_CARLO)
+function NMSE = Simulate( generator, sampler, estimator, MONTE_CARLO, testSetOnly)
 % SIMULATE      simulate function estiamtion on graph
 % Input:
 %       generator       graph function generator matrix
@@ -24,7 +24,7 @@ for iRow = 1 : ROW
             getObjectFromMat(generator,iRow, iCol), ...
             getObjectFromMat(sampler,iRow,iCol), ...
             getObjectFromMat(estimator, iRow, iCol), ...
-            MONTE_CARLO);
+            MONTE_CARLO, testSetOnly);
 
         if DEBUG
             fprintf('Simulation progress\t%3.1f%%\n', ...
@@ -35,15 +35,28 @@ end
 
 end
 
-function NMSE = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO )
+function NMSE = MonteCarloSimulation( generator, sampler, estimator, MONTE_CARLO, testSetOnly )
 % Monte Carlo simulation
 v_nmse = NaN(MONTE_CARLO,1);
 %parfor iMonte = 1:MONTE_CARLO
-for iMonte = 1:MONTE_CARLO
-    m_graphFunction = generator.realization();
-    [m_samples, m_positions] = sampler.sample(m_graphFunction);
-    m_estimate = estimator.estimate(m_samples, m_positions);
-    v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;
+%m_graphFunction = generator.realization();
+if testSetOnly
+    for iMonte = 1:MONTE_CARLO
+        m_graphFunction = generator.realization();
+        [m_samples, m_positions] = sampler.sample(m_graphFunction);
+        m_estimate = estimator.estimate(m_samples, m_positions);
+        testSetIndex = true(size(m_graphFunction));
+        testSetIndex(m_positions) = false;
+        v_nmse(iMonte) = norm(m_estimate(testSetIndex) - m_graphFunction(testSetIndex))^2 / ...
+            norm(m_graphFunction(testSetIndex))^2;
+    end
+else
+    parfor iMonte = 1:MONTE_CARLO
+        m_graphFunction = generator.realization();
+        [m_samples, m_positions] = sampler.sample(m_graphFunction);
+        m_estimate = estimator.estimate(m_samples, m_positions);
+        v_nmse(iMonte) = norm(m_estimate - m_graphFunction)^2 / norm(m_graphFunction)^2;
+    end
 end
 
 NMSE = mean(v_nmse);
