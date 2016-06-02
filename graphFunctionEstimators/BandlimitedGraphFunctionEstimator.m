@@ -121,15 +121,7 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 				end
 				
 				m_PhiB = m_eigenvecs( m_positions(:,iRealization) , : );
-                if cond(m_PhiB)>1e6
-%cond(m_PhiB)                    
-%v_alphas = m_PhiB\m_samples(:,iRealization);     
-%keyboard
-%disp('discarding est')
-                    v_alphas = mean(m_samples(:,iRealization))*ones(size(m_PhiB,2),1);
-                else
-                    v_alphas = m_PhiB\m_samples(:,iRealization);
-                end
+				v_alphas = m_PhiB\m_samples(:,iRealization);
 				m_estimate(:,iRealization) = m_eigenvecs*v_alphas;
 			end
 			

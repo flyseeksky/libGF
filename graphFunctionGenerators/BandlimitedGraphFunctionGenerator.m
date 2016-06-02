@@ -2,9 +2,9 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 	
 	
 	properties % Required by superclass Parameter
-		c_parsToPrint    = {'ch_name','s_bandwidth','ch_distribution'};
-		c_stringToPrint  = {'',    'B',             'distribution'};
-		c_patternToPrint = {'%s%s signal','%s = %d','%s = %s'};
+		c_parsToPrint    = {'ch_name','s_bandwidth'};
+		c_stringToPrint  = {'',    'B'};
+		c_patternToPrint = {'%s%s signal','%s = %d'};
 	end 
 	
 	properties
@@ -17,7 +17,7 @@ classdef BandlimitedGraphFunctionGenerator  < GraphFunctionGenerator
 		% are generated and then sorted
         
         b_generateSameFunction = 0; % generate the same function if set to 1
-	    s_mean = 0;
+	    s_mean = 1;
 		
 	end
 	
