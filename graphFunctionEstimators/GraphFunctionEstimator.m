@@ -25,7 +25,7 @@ classdef GraphFunctionEstimator < Parameter
 			%                           the vertices where the samples were
 			%                           taken  
 			
-			assert(size(v_samples,2)==1,'not implemented');
+			%assert(size(v_samples,2)==1,'not implemented');
 			
             %N = obj.getNumOfVertices();
             S = length(v_samples);
