@@ -102,22 +102,21 @@ classdef SemiParametricSimulations < simFunctionSet
 		end
 		%Goal: count only error on unseen data
 		%     generalization capabibilities 
-		function F = compute_fig_1101(obj,niter)
+		function F = compute_fig_1011(obj,niter)
 			
 			%0. define parameters
-			
-			s_sigma=2.0;
+			s_sigma=1.3;
 			s_numberOfClusters=5;
-			s_lambda=10^-6;
+			s_lambda=10^-5;
 			s_monteCarloSimulations=niter;%100;
-			s_bandwidth1=30;
-			s_bandwidth2=35;
+			s_bandwidth1=10;
+			s_bandwidth2=20;
 			s_SNR=1000;
-			s_beta=0.002;
-			s_alpha=0.00005;
+			s_beta=0.02;
+			s_alpha=0.005;
 			s_niter=10;
-			s_epsilon=0;
-			s_functionTypes=6;
+			s_epsilon=0.2;
+			s_functionTypes=5;
 			v_sampleSetSize=(0.1:0.1:1);
 		
 			m_meanSquaredError=zeros(size(v_sampleSetSize,2),s_functionTypes);
@@ -125,8 +124,8 @@ classdef SemiParametricSimulations < simFunctionSet
 			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset;
 			%tic
 			m_constraintLaplacian=zeros(size(Ho,1));
-			%m_constraintLaplacian(4:15,1)=1;
-			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian);
+			m_constraintLaplacian(4:15,1)=1;
+			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian,'s_dont_estimate_the_signal',1);
 			%toc
 			
 			% tic
@@ -156,17 +155,15 @@ classdef SemiParametricSimulations < simFunctionSet
 			diffusionGraphKernel = DiffusionGraphKernel('m_laplacian',graph.getLaplacian,'s_sigma',s_sigma);
 			%define non-parametric estimator
 			nonParametricGraphFunctionEstimator=NonParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix);
-			nonParametricGraphFunctionEstimator.s_regularizationParameter=[10^-10,10^-9,10^-8,10^-7,10^-6,10^-5,10^-4,10^-3,10^-2,10^-1];
+			
 			%define semi-parametric estimator
 			semiParametricGraphFunctionEstimator = SemiParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
 			
 			semiParametricGraphFunctionEpsilonInsesitiveEstimator=SemiParametricGraphFunctionEpsilonInsesitiveEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-			%define parametric estimator=
-			parametricGraphFunctionEstimator=ParametricGraphFunctionEstimator('m_basis',m_basis);
+			
 			
 			% Simulation
-			%dont sample all the vertices no point
-			for s_sampleSetIndex=1:(size(v_sampleSetSize,2)-1)
+			for s_sampleSetIndex=1:size(v_sampleSetSize,2)
 				
 				
 				s_numberOfSamples=v_sampleSetSize(s_sampleSetIndex);
@@ -181,113 +178,6 @@ classdef SemiParametricSimulations < simFunctionSet
 				m_graphFunctionEstimateNP=nonParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
 				m_graphFunctionEstimateSP=semiParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
 				m_graphFunctionEpsilonInsesitiveEstimateSP=semiParametricGraphFunctionEpsilonInsesitiveEstimator.estimate(m_samples,m_positions,s_lambda,s_epsilon);
-				m_graphFunctionEstimateP=parametricGraphFunctionEstimator.estimate(m_samples,m_positions);
-				% Performance assessment
-				m_indicator=SemiParametricSimulations.createIndicatorMatrix(m_graphFunction,m_positions);
-				m_meanSquaredError(s_sampleSetIndex,1) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEstimateBL1,m_indicator.*m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,2) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEstimateBL2,m_indicator.*m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,3) = SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEstimateP,m_indicator.*m_graphFunction);
-
-				m_meanSquaredError(s_sampleSetIndex,4) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEstimateNP,m_indicator.*m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,5) = SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEstimateSP,m_indicator.*m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,6) = SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_indicator.*m_graphFunctionEpsilonInsesitiveEstimateSP,m_indicator.*m_graphFunction);
-			end
-			%m_meanSquaredError(m_meanSquaredError>1)=1;
-			%save('real.mat');
-			
-			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of sampled vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Parametric','Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'});
-			F.ylimit=[0 1];
-			F.xlimit=[10 80];
-			F.styles = {'-','--','-o','-x','--^','-*'};
-			F.pos=[680 729 509 249];
-		end
-		%Goal: add another month as outlier to the data
-		%      outlier detection l1 norm and measuere error on unseen data
-		function F = compute_fig_1201(obj,niter)
-			
-			%0. define parameters
-			s_sigma=0.72;
-			s_numberOfClusters=5;
-			s_lambda=10^-5;
-			s_monteCarloSimulations=niter;%100;
-			s_bandwidth1=10;
-			s_bandwidth2=20;
-			s_SNR=1000;
-			s_beta=0.02;
-			s_alpha=0.00005;
-			s_niter=10;
-			s_epsilon=0.2;
-			s_functionTypes=5;
-			v_sampleSetSize=(0.1:0.1:1);
-		
-			m_meanSquaredError=zeros(size(v_sampleSetSize,2),s_functionTypes);
-			% define graph
-			[Ho,Mo,Alto,Hn,Mn,Altn] = readTemperatureDataset;
-			%tic
-			m_constraintLaplacian=zeros(size(Ho,1));
-			%m_constraintLaplacian(4:15,1)=1;
-			graphGenerator = GraphLearningSmoothSignalGraphGenerator('m_observed',Ho,'s_niter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta,'m_constraintLaplacian',m_constraintLaplacian);
-			%toc
-			
-			% tic
-			% graphGenerator=SmoothSignalGraphGenerator('m_observed',Ho,'s_maxIter',s_niter,'s_alpha',s_alpha,'s_beta',s_beta);
-			% toc
-			
-			graph = graphGenerator.realization;
-			%graph1 = graphGenerator1.realization;
-			%L1=graph.getLaplacian
-			%L2=graph1.getLaplacian
-			v_sampleSetSize=round(v_sampleSetSize*graph.getNumberOfVertices);
-			
-			
-			m_basis= SemiParametricSimulations.parametricPartForTempData(graph.getLaplacian,Alto,s_numberOfClusters);
-			
-			%functionGeneratorBL = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',s_bandwidth);
-			%functionGenerator= SemiParametricGraphFunctionGenerator('graph',graph,'graphFunctionGenerator',functionGeneratorBL,'m_parametricBasis',m_basis);
-			%signal
-			v_realSignal=Hn(:,1);
-			v_outlierSignal=Hn(:,8);
-			functionGenerator=RealDataGraphFunctionGenerator('graph',graph,'v_realSignal',v_realSignal,'s_normalize',1);
-			outlyingFunctionGenerator=RealDataGraphFunctionGenerator('graph',graph,'v_realSignal',v_outlierSignal,'s_normalize',1);
-			% define bandlimited function estimator
-			%m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
-			
-			% define Kernel function
-			diffusionGraphKernel = DiffusionGraphKernel('m_laplacian',graph.getLaplacian,'s_sigma',s_sigma);
-			%define non-parametric estimator
-			nonParametricGraphFunctionEstimator=NonParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix);
-			
-			%define semi-parametric estimator
-			semiParametricGraphFunctionEstimator = SemiParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-			
-			semiParametricGraphFunctionEpsilonInsesitiveEstimator=SemiParametricGraphFunctionEpsilonInsesitiveEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-			
-			
-			% Simulation
-			%dont sample all the vertices no point
-			for s_sampleSetIndex=1:(size(v_sampleSetSize,2)-1)
-				
-				
-				s_numberOfSamples=v_sampleSetSize(s_sampleSetIndex);
-				%sample
-				s_numberOfOutliers=round(s_numberOfSamples/8);
-				
-				sampler = UniformGraphFunctionSampler('s_numberOfSamples',s_numberOfSamples,'s_SNR',s_SNR);
-				m_graphFunction = functionGenerator.realization(s_monteCarloSimulations);
-				m_outlyingFunction = outlyingFunctionGenerator.realization(s_monteCarloSimulations);
-			
-				[m_samples,m_positions] = sampler.sample(m_graphFunction);
-                m_samplesWithOutliers=SemiParametricSimulations.combineFunctionWithOutliers(m_graphFunction,m_outlyingFunction,m_samples,m_positions,s_numberOfOutliers);
-
-				
-				%estimate
-				m_graphFunctionEstimateBL1 = bandlimitedGraphFunctionEstimator1.estimate(m_samplesWithOutliers,m_positions);
-				m_graphFunctionEstimateBL2= bandlimitedGraphFunctionEstimator2.estimate(m_samplesWithOutliers,m_positions);
-				m_graphFunctionEstimateNP=nonParametricGraphFunctionEstimator.estimate(m_samplesWithOutliers,m_positions,s_lambda);
-				m_graphFunctionEstimateSP=semiParametricGraphFunctionEstimator.estimate(m_samplesWithOutliers,m_positions,s_lambda);
-				m_graphFunctionEpsilonInsesitiveEstimateSP=semiParametricGraphFunctionEpsilonInsesitiveEstimator.estimate(m_samplesWithOutliers,m_positions,s_lambda,s_epsilon);
 				
 				% Performance assessment
 				m_indicator=SemiParametricSimulations.createIndicatorMatrix(m_graphFunction,m_positions);
@@ -303,7 +193,7 @@ classdef SemiParametricSimulations < simFunctionSet
 			
 			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of observed vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'});
 		end
-		
+
 		function F = compute_fig_1002(obj,niter)
 			F = obj.load_F_structure(1001);
 			F.ylimit=[0 1];
@@ -315,20 +205,10 @@ classdef SemiParametricSimulations < simFunctionSet
 			F.leg_pos = 'north';      % it can be 'northwest',
 			%F.leg_pos_vec = [0.547 0.673 0.182 0.114];
 		end
-		function F = compute_fig_1102(obj,niter)
-			F = obj.load_F_structure(1101);
-			
-			F.styles = {'-','--','-o','-x','--^','-*'};
-			F.pos=[680 729 509 249];
-			F.leg={strcat('Bandlimited  ',sprintf(' W=8')),strcat('Bandlimited',sprintf(' W=12')),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)','Parametric (SL)'};
-			
-			F.leg_pos = 'north';      % it can be 'northwest',
-			%F.leg_pos_vec = [0.547 0.673 0.182 0.114];
-		end
-		function F = compute_fig_1202(obj,niter)
-			F = obj.load_F_structure(1201);
+		function F = compute_fig_1012(obj,niter)
+			F = obj.load_F_structure(1011);
 			F.ylimit=[0 1];
-			F.xlimit=[10 80];
+			F.xlimit=[10 89];
 			F.styles = {'-','--','-o','-x','--^'};
 			F.pos=[680 729 509 249];
 			F.leg={strcat('Bandlimited  ',sprintf(' W=10')),strcat('Bandlimited',sprintf(' W=20')),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'};
@@ -336,22 +216,21 @@ classdef SemiParametricSimulations < simFunctionSet
 			F.leg_pos = 'north';      % it can be 'northwest',
 			%F.leg_pos_vec = [0.547 0.673 0.182 0.114];
 		end
-
 		%% Synthetic data simulations 
 		%  Data used: piece wise constant signals
 		%  Goal: methods comparison NMSE
 		function F = compute_fig_1003(obj,niter)
 						
 			%0. define parameters
-			s_sigma=0.005;
+			s_sigma=0.7;
 			s_numberOfClusters=4;
 			s_type=2;
-			s_lambda=10^-10;
+			s_lambda=10^-8;
 			s_monteCarloSimulations=niter;
 			s_bandwidth1=10;
-			s_bandwidth2=15;
+			s_bandwidth2=20;
 			s_SNR=4;
-			s_dataSetSize=250;
+			s_dataSetSize=100;
 			s_functionTypes=5;
 			s_epsilon=0.1;
 			v_sampleSetSize=round((0.1:0.1:1)*s_dataSetSize);
@@ -361,95 +240,7 @@ classdef SemiParametricSimulations < simFunctionSet
 			graph = graphGenerator.realization;
 			
 			m_sparseBasis=graph.getClusters(s_numberOfClusters,s_type);
-			m_basis=1.0*full(m_sparseBasis);
-			%m_basis=m_basis*1;
-			
-			functionGeneratorBL = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',s_bandwidth2+5);
-			functionGenerator= SemiParametricGraphFunctionGenerator('graph',graph,'graphFunctionGenerator',functionGeneratorBL,'m_parametricBasis',m_basis);
-			m_laplacianEigenvectors=(graph.getLaplacianEigenvectors);
-			
-			% define bandlimited function estimator
-			bandlimitedGraphFunctionEstimator1 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth1);
-			bandlimitedGraphFunctionEstimator2 = BandlimitedGraphFunctionEstimator('m_laplacian',graph.getLaplacian,'s_bandwidth',s_bandwidth2);
-			% define Kernel function
-			diffusionGraphKernel = DiffusionGraphKernel('m_laplacian',graph.getLaplacian,'s_sigma',s_sigma);
-			%define non-parametric estimator
-			nonParametricGraphFunctionEstimator=NonParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix);
-			
-			%define semi-parametric estimator
-			semiParametricGraphFunctionEstimator = SemiParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-			%define semi-parametric epsinlon  insensitive estimator
-			semiParametricGraphFunctionEpsilonInsesitiveEstimator=SemiParametricGraphFunctionEpsilonInsesitiveEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-		    parametricGraphFunctionEstimator=ParametricGraphFunctionEstimator('m_basis',m_basis);
-
-			% Simulation
-			for s_sampleSetIndex=1:size(v_sampleSetSize,2)
-				
-				
-				s_numberOfSamples=v_sampleSetSize(s_sampleSetIndex);
-				%sample
-				sampler = UniformGraphFunctionSampler('s_numberOfSamples',s_numberOfSamples,'s_SNR',s_SNR);
-				m_graphFunction = functionGenerator.realization(s_monteCarloSimulations);
-				[m_samples,m_positions] = sampler.sample(m_graphFunction);
-				%estimate
-				m_graphFunctionEstimateBL1 = bandlimitedGraphFunctionEstimator1.estimate(m_samples,m_positions);
-				m_graphFunctionEstimateBL2= bandlimitedGraphFunctionEstimator2.estimate(m_samples,m_positions);
-				m_graphFunctionEstimateNP=nonParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
-				m_graphFunctionEstimateSP=semiParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
-				%m_graphFunctionEpsilonInsesitiveEstimateSP=semiParametricGraphFunctionEpsilonInsesitiveEstimator.estimate(m_samples,m_positions,s_lambda,s_epsilon);
-				m_graphFunctionEstimateP=parametricGraphFunctionEstimator.estimate(m_samples,m_positions);
-				% Performance assessment
-				m_meanSquaredError(s_sampleSetIndex,1) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateBL1,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,2) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateBL2,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,3) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateP,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,4) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateNP,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,5) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateSP,m_graphFunction);
-				%m_meanSquaredError(s_sampleSetIndex,6) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEpsilonInsesitiveEstimateSP,m_graphFunction);
-				
-			end
-			%m_meanSquaredError(m_meanSquaredError>1)=1;
-			%save('synthetic.mat');
-			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of observed vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Parametric','Nonparametric (SL)','Semiparametric (SL)','Semiparametric (\epsilon-IL)'});
-			F.ylimit=[0 1];
-			F.xlimit=[10 s_dataSetSize];
-			
-		end
-		
-		function F = compute_fig_1004(obj,niter)
-			F = obj.load_F_structure(1003);
-			F.ylimit=[0 1];
-			F.xlimit=[10 100];
-			F.styles = {'-','--','-o','-x','--^','--*'};
-			F.pos=[680 729 509 249];
-			F.leg={strcat('Bandlimited  ',sprintf(' W=10')),strcat('Bandlimited',sprintf(' W=20')),'Parametric','Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'};
-			
-			%F.leg_pos = 'northeast';      % it can be 'northwest',
-			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
-		end
-		% ADD outlyers 
-		function F = compute_fig_1103(obj,niter)
-						
-			%0. define parameters
-			s_sigma=0.001;
-			s_numberOfClusters=5;
-			s_type=2;
-			s_lambda=10^-8;
-			s_outlyingPercentage=0.7;
-			s_monteCarloSimulations=niter;
-			s_bandwidth1=10;
-			s_bandwidth2=20;
-			s_SNR=0.01;
-			s_dataSetSize=200;
-			s_functionTypes=6;
-			s_epsilon=0.2;
-			v_sampleSetSize=round((0.1:0.1:1)*s_dataSetSize);
-			m_meanSquaredError=zeros(size(v_sampleSetSize,2),s_functionTypes);
-			% define graph function generator Parametric basis
-			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability',.3,'s_numberOfVertices',s_dataSetSize);
-			graph = graphGenerator.realization;
-			
-			m_sparseBasis=graph.getClusters(s_numberOfClusters,s_type);
-			m_basis=1.05*full(m_sparseBasis);
+			m_basis=1.5*full(m_sparseBasis);
 			%m_basis=m_basis*1;
 			
 			functionGeneratorBL = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',s_bandwidth1);
@@ -468,15 +259,14 @@ classdef SemiParametricSimulations < simFunctionSet
 			semiParametricGraphFunctionEstimator = SemiParametricGraphFunctionEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
 			%define semi-parametric epsinlon  insensitive estimator
 			semiParametricGraphFunctionEpsilonInsesitiveEstimator=SemiParametricGraphFunctionEpsilonInsesitiveEstimator('m_kernels',diffusionGraphKernel.generateKernelMatrix,'m_basis',m_basis);
-		    parametricGraphFunctionEstimator=ParametricGraphFunctionEstimator('m_basis',m_basis);
-
+			
 			% Simulation
 			for s_sampleSetIndex=1:size(v_sampleSetSize,2)
 				
 				
 				s_numberOfSamples=v_sampleSetSize(s_sampleSetIndex);
 				%sample
-				sampler = UniformWithOutliersGraphFunctionSampler('s_numberOfSamples',s_numberOfSamples,'s_SNR',s_SNR,'s_outlyingPercentage',s_outlyingPercentage);
+				sampler = UniformGraphFunctionSampler('s_numberOfSamples',s_numberOfSamples,'s_SNR',s_SNR);
 				m_graphFunction = functionGenerator.realization(s_monteCarloSimulations);
 				[m_samples,m_positions] = sampler.sample(m_graphFunction);
 				%estimate
@@ -485,42 +275,32 @@ classdef SemiParametricSimulations < simFunctionSet
 				m_graphFunctionEstimateNP=nonParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
 				m_graphFunctionEstimateSP=semiParametricGraphFunctionEstimator.estimate(m_samples,m_positions,s_lambda);
 				m_graphFunctionEpsilonInsesitiveEstimateSP=semiParametricGraphFunctionEpsilonInsesitiveEstimator.estimate(m_samples,m_positions,s_lambda,s_epsilon);
-				m_graphFunctionEstimateP=parametricGraphFunctionEstimator.estimate(m_samples,m_positions);
 				% Performance assessment
 				m_meanSquaredError(s_sampleSetIndex,1) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateBL1,m_graphFunction);
 				m_meanSquaredError(s_sampleSetIndex,2) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateBL2,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,3) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateP,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,4) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateNP,m_graphFunction);
-				m_meanSquaredError(s_sampleSetIndex,5) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateSP,m_graphFunction);
-                m_meanSquaredError(s_sampleSetIndex,6) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEpsilonInsesitiveEstimateSP,m_graphFunction);
-				
+				m_meanSquaredError(s_sampleSetIndex,3) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateNP,m_graphFunction);
+				m_meanSquaredError(s_sampleSetIndex,4) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEstimateSP,m_graphFunction);
+				m_meanSquaredError(s_sampleSetIndex,5) =SemiParametricSimulations.estimateNormalizedMeanSquaredError(m_graphFunctionEpsilonInsesitiveEstimateSP,m_graphFunction);
 			end
 			%m_meanSquaredError(m_meanSquaredError>1)=1;
 			%save('synthetic.mat');
-			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of sampled vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Parametric','Nonparametric (SL)','Semiparametric (SL)','Semiparametric (\epsilon-IL)'});
-			F.ylimit=[0 1];
-			F.xlimit=[s_dataSetSize/10 s_dataSetSize+1];
-			F.styles = {'-','--','-o','-x','--^','--*'};
-			%F.pos=[680 729 509 249];
+			F = F_figure('X',v_sampleSetSize,'Y',m_meanSquaredError','xlab','Number of observed vertices (S)','ylab','NMSE','leg',{strcat('Bandlimited  ',sprintf(' W=%g',s_bandwidth1)),strcat('Bandlimited',sprintf(' W=%g',s_bandwidth2)),'Nonparametric (SL)','Semiparametric (SL)','Semiparametric (\epsilon-IL)'});
+			
 			
 		end
 		
-		
-		function F = compute_fig_1104(obj,niter)
-			F = obj.load_F_structure(1103);
+		function F = compute_fig_1004(obj,niter)
+			F = obj.load_F_structure(1003);
 			F.ylimit=[0 1];
-			F.xlimit=[10 250];
-			F.styles = {'-','--','-o','-x','--^','--*'};
+			F.xlimit=[10 100];
+			F.styles = {'-','--','-o','-x','--^'};
 			F.pos=[680 729 509 249];
-			F.leg={strcat('Bandlimited  ',sprintf(' W=10')),strcat('Bandlimited',sprintf(' W=20')),'Parametric','Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'};
+			F.leg={strcat('Bandlimited  ',sprintf(' W=10')),strcat('Bandlimited',sprintf(' W=20')),'Nonparametric (SL)','Semi-parametric (SL)','Semi-parametric (\epsilon-IL)'};
 			
 			%F.leg_pos = 'northeast';      % it can be 'northwest',
 			F.leg_pos_vec = [0.647 0.683 0.182 0.114];
 		end
-
-		
-		
-		%% Real data simulations
+		%% Real data simulations 
 		%  Data used: Swiss temperature
 		%  Goal: epsilon tuning
 		function F = compute_fig_1005(obj,niter)
@@ -1149,24 +929,15 @@ classdef SemiParametricSimulations < simFunctionSet
 			end
 			
 		end
-		%creates indicator matrix of unsampeld vertices
+		
 		function m_indicator=createIndicatorMatrix(m_graphFunction,m_samples)
 			m_indicator=zeros(size(m_graphFunction));
-			for i=1:size(m_graphFunction,2)
+			for i=size(m_graphFunction,2)
 			m_indicator(m_samples(:,i),i)=1;
 			end
 			m_indicator=~m_indicator;
 		end
-		%
-		function m_samplesWithOutliers=combineFunctionWithOutliers(m_graphFunction,m_outlyingFunction,m_samples,m_positions,s_numberOfOutliers)
-
-			m_samplesWithOutliers=m_samples;
-			for i=1:size(m_graphFunction,2)
-		    v_outlyingPositions=randsample(m_positions(:,i),s_numberOfOutliers);
-			m_samplesWithOutliers(ismember(m_positions(:,i),v_outlyingPositions),i)=m_graphFunction(v_outlyingPositions,i)+m_outlyingFunction( v_outlyingPositions,i);
-			end
-		end
-	    %estimates the normalized mean squared error
+		%estimates the normalized mean squared error
 		function res = estimateNormalizedMeanSquaredError(m_est,m_observed)
 			res=0;
 			for i=1:size(m_est,2)

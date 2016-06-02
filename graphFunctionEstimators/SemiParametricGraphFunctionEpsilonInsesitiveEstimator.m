@@ -81,7 +81,7 @@ classdef SemiParametricGraphFunctionEpsilonInsesitiveEstimator< GraphFunctionEst
                 %quadprog
                 %%
                 cvx_begin
-				cvx_solver sedumi
+				%cvx_solver sedumi
                 variables v_alphas(s_numberOfSampledVertices) v_betas(s_sizeOfBasis) v_ksi(s_numberOfSampledVertices) v_ksi_tilda(s_numberOfSampledVertices)
                 minimize ((1/s_numberOfSampledVertices) *(v_ksi+v_ksi_tilda)'*ones(s_numberOfSampledVertices,1)+s_lambda*v_alphas'*m_subK*v_alphas);
                 subject to

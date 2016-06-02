@@ -47,13 +47,6 @@ classdef NonParametricGraphFunctionEstimator< GraphFunctionEstimator
             
             m_estimate = zeros(s_numberOfVertices,s_numberOfRealizations);
             for realizationCounter = 1:s_numberOfRealizations
-				% do cross validation to select best regularization parameter
-%             if length(obj.s_regularizationParameter) > 1
-%                 s_lambda= obj.crossValidation(m_samples, m_positions, obj.s_regularizationParameter);
-% 			else
-% 				s_lambda=obj.s_regularizationParameter;
-% 			end
-% 			
                 
                 m_subK=obj.m_kernels(m_positions(:,realizationCounter),m_positions(:,realizationCounter));
                 v_alphas=(m_subK+s_lambda*size(m_subK,1)*eye(size(m_subK)))\m_samples(:,realizationCounter);
@@ -63,8 +56,7 @@ classdef NonParametricGraphFunctionEstimator< GraphFunctionEstimator
             end
             
             
-		end
-	
+        end
         
     end
     
