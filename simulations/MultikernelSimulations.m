@@ -238,6 +238,31 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 		
 		
+		% Figure to illustrate the interpolating functions (columns of the
+		% kernel matrix) in a circular graph
+		function F = compute_fig_1007(obj,niter)
+			
+			vertexNum = 100;
+			v_columnInd = [ 10 25  50 60 70];
+			v_amplitudes = [.5 .2 1 .7 .8];
+			A = circshift(eye(vertexNum),1)+circshift(eye(vertexNum),-1);
+			L = diag(sum(A,2))-A;
+						
+		
+			% b) Diffusion kernel			
+			sigma2_DiffusionKernel = [20];
+			rDiffusionKernel = @(lambda,sigma2) exp(sigma2*lambda/2);			
+			for i_center = length(v_columnInd):-1:1
+				KcolDiffusionKernel(i_center,:) = MultikernelSimulations.columnLaplacianKernelCircularGraph(vertexNum,@(lambda) rDiffusionKernel(lambda,sigma2_DiffusionKernel) , v_columnInd(i_center))';
+				leg{i_center} = sprintf('\\alpha_{%d} k(v_{n''},v_{%d})',v_columnInd(i_center),v_columnInd(i_center));
+			end		
+			KcolDiffusionKernel = diag(v_amplitudes'./max(KcolDiffusionKernel,[],2))*KcolDiffusionKernel;
+						
+			m_Y = [KcolDiffusionKernel;sum(KcolDiffusionKernel,1)];
+			F = F_figure('X',1:2:vertexNum,'Y',m_Y(:,1:2:vertexNum),'styles',{'-','-','-','-','-','-'},'colorset',[zeros(length(v_columnInd),3);1 0 0],'xlab','Vertex index','ylab','Function value','xlimit',[1,vertexNum],'gstyle','');
+			
+		end
+		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		% %%  2. simulations with estimators for bandlimited signals on
@@ -922,7 +947,7 @@ classdef MultikernelSimulations < simFunctionSet
 		% print version of 3100
 		function F = compute_fig_3108(obj,niter)
 			F = obj.load_F_structure(3100);
-			F.xlab = 'Diffusion kernel parameter (\sigma^2)';
+			F.xlab = 'Diffusion kernel parameter';
 			F.ylimit = [0 0.7];
 		end
 		
@@ -1751,6 +1776,80 @@ classdef MultikernelSimulations < simFunctionSet
 			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
 			
 		end
+		
+		
+		% 5) Figures to illustrate MKL with heterogeneous dictionaries ====
+		
+		% MC simulation to compare multiple kernel dictionaries
+		%      NMSE vs S
+		% - generated signal is bandlimited
+		function F = compute_fig_3501(obj,niter)
+						
+			% 1. Graph and signal 
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the true function
+			
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.25 ,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;			
+			generator = BandlimitedGraphFunctionGenerator('graph',graph,'s_bandwidth',B);
+			%graphFunction = bandlimitedFunctionGenerator.realization();
+			%generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+						
+			% 2. Sampler
+			SNR = 10; % dB
+			S_vec = 10:5:100;
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
+			sampler = sampler.replicate('',[],'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. Estimators
+			sigmaArray_diffusion = linspace(0.1,.5,5);
+			sigmaArray_regularized = linspace(0.1,.5,5);
+						
+			% 4. MKL function estimators	
+			% 4. generate Kernel matrix
+			
+			h_r_inv_diffusion = LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray_diffusion);
+			h_r_inv_regularized = LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray_regularized);
+			dictionary_diffusion = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_diffusion);			
+			dictionary_regularized = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_regularized);			
+			dictionary_both = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',[h_r_inv_diffusion, h_r_inv_regularized]);			
+			dictionary_legend = {'D1','D2','D3'};
+			%%
+			% *BOLD TEXT* );
+			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
+			%mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2,'ch_type','RKHS superposition');
+			rs_estimators = MkrGraphFunctionEstimator('s_regularizationParameter',.05,'ch_type','RKHS superposition');
+			rs_estimators = rs_estimators.replicate('m_kernel',{dictionary_diffusion.getKernelMatrix(),dictionary_regularized.getKernelMatrix(),dictionary_both.getKernelMatrix()},'',{});
+			
+			ks_estimators = MkrGraphFunctionEstimator('s_regularizationParameter',.05,'ch_type','kernel superposition');
+			ks_estimators = ks_estimators.replicate('m_kernel',{dictionary_diffusion.getKernelMatrix(),dictionary_regularized.getKernelMatrix(),dictionary_both.getKernelMatrix()},'',{});
+			
+            est = [rs_estimators;ks_estimators];
+			
+			for k = 1:6
+				est(k,1).c_replicatedVerticallyAlong = {'ch_type'};			
+			end			
+			leg = Parameter.getLegend(generator,sampler,est);
+			for k = 1:6
+				leg{k} = [leg{k}, sprintf(', D%d',mod(k-1,3)+1) ];
+			end
+			
+
+			% Simulation
+			mse =  Simulate(generator,sampler,est,niter);
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',leg,'leg_pos','northwest',...
+                'xlab','Number of observed vertices (S)','ylimit',[0 1.5],'xlimit',[min(Parameter.getXAxis(generator,sampler,est)),max(Parameter.getXAxis(generator,sampler,est))],...
+				'ylab','NMSE','caption',Parameter.getTitle(graphGenerator,generator,sampler,est),'styles',{'-v','-^','-x','--v','--^','--x'});
+			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+			F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Bandlimited','BL';'Ass. B = cut-off freq.','cut-off'; ...
+				'BL, Ass.','BL for'};
+		end
+		
+		
+		
 		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3023,9 +3122,137 @@ end
 			
 			F = [];
 			
+		end
+        
+        
+		  
+        function F = compute_fig_5205(obj,niter)
+            % define parameters
+			s_nodeNum = 50;
+            s_departureDelay = 0;
+			
+			% estimation parameters
+			s_numberOfSamples = 20;
+            ref_lmmse = 0;
+			%%%%%%%%%%%%%%%%%%
+
+			% load data            
+            [ m_training_data, m_test_data, m_training_adj , m_test_adj ] = MultikernelSimulations.getSixMonths(s_nodeNum,s_departureDelay);
+            m_adjacency = sum(m_training_adj,3);
+            m_adjacency = (m_adjacency+m_adjacency') /2;
+            m_adjacency = m_adjacency > 100;
+            
+            sparsity = sum(m_adjacency(:))/(numel(m_adjacency)-size(m_adjacency,1))
+
+			
+			% data normalization
+			v_mean = mean(m_training_data,2);
+			v_std = std(m_training_data')';
+			m_normalized_training_data = diag(1./v_std)*(m_training_data - v_mean*ones(1,size(m_training_data,2)));
+			m_normalized_test_data = diag(1./v_std)*(m_test_data - v_mean*ones(1,size(m_test_data,2)));
+			
+			% covariance of normalized data
+			m_covInv = MultikernelSimulations.learnInverseCov( cov(m_normalized_training_data') , m_adjacency );
+			
+            % approximation of inverse covariance via constrained Laplacian			
+			%m_covInv = inv(C);
+			m_constrainedLaplacian = MultikernelSimulations.approximateWithLaplacian(m_covInv,m_adjacency);
+			
+            
+			% generator and sampler
+            generator = RandomlyPickGraphFunctionGenerator('m_graphFunction',m_normalized_test_data);
+            sampler = UniformGraphFunctionSampler('s_SNR',Inf,'s_numberOfSamples',s_numberOfSamples);
+		
+            
+            % estimators
+            s_mu = 1e-3;
+			cov_estimator = RidgeRegressionGraphFunctionEstimator('s_regularizationParameter',s_mu,'m_kernel',inv(m_covInv));
+          
+            s_muMKL = 1e-4;
+            s_sigma = sqrt(linspace(0.1,7,30));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel1 = kG.getKernelMatrix();
+            mkl_estimator1 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel1,'ch_type', 'RKHS superposition');   % first 1
+            
+            s_sigma = sqrt(linspace(0.1,7,30));
+            kG = LaplacianKernel('m_laplacian',m_constrainedLaplacian,'h_r_inv',LaplacianKernel.diffusionKernelFunctionHandle(s_sigma));
+            m_kernel2 = kG.getKernelMatrix();
+            mkl_estimator2 = MkrGraphFunctionEstimator('s_regularizationParameter',s_muMKL, 'm_kernel', m_kernel2,'ch_type', 'kernel superposition');
+            
+            % BL estimator
+            bandwidth_vec = [2 3 8 -1];
+            bl_estimator = BandlimitedGraphFunctionEstimator('m_laplacian', m_constrainedLaplacian);
+            bl_estimator = bl_estimator.replicate('s_bandwidth', num2cell(bandwidth_vec), [], {});
+            
+            estimator = [cov_estimator;mkl_estimator1;mkl_estimator2; bl_estimator];
+            % simulation
+			
+         	unnormalized_signal_mse = NaN(size(estimator,1),niter);			
+            unnormalized_signal_energy = NaN(size(estimator,1),niter);			
+			for s_itInd = 1:niter				
+				% generate signal
+				v_signal = generator.realization();
+				
+				% sample signal
+				[v_samples,v_sampleLocations] = sampler.sample(v_signal);
+                
+                v_test_indices = 1:length(v_signal);
+                v_test_indices(v_sampleLocations) = 0; v_test_indices = v_test_indices(v_test_indices>0);
+                for s_estimatorInd = 1:size(estimator,1)
+                    % estimate signal
+                    v_signalEst = estimator(s_estimatorInd).estimate(v_samples,v_sampleLocations);
+                    
+                    % revert normalization
+                    v_unnormalized_signal = (v_std).*v_signal + v_mean;
+                    v_unnormalized_signalEst = (v_std).*v_signalEst + v_mean;
+                    
+                    % measure error                    
+                    unnormalized_signal_mse(s_estimatorInd,s_itInd) = norm( v_unnormalized_signal(v_test_indices) - v_unnormalized_signalEst(v_test_indices) )^2/(length(v_test_indices)) ;%/  norm( v_unnormalized_signal(v_test_indices)  )^2;
+                    unnormalized_signal_energy(s_estimatorInd,s_itInd) =  norm( v_unnormalized_signal(v_test_indices)  )^2/(length(v_test_indices));
+                end
+			end
+			
+			% average error
+            unnormalized_signal_mse = mean(unnormalized_signal_mse,2)
+            unnormalized_signal_nmse = unnormalized_signal_mse ./ mean(unnormalized_signal_energy,2)
+
+            rmse_in_minutes = sqrt(unnormalized_signal_mse)
+            
+            %%
+            % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			% print the table into a tex file
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			fid = fopen('libGF/simulations/MultikernelSimulations_data/airport.tex','w');
+			fprintf(fid, '\\begin{tabular}{%s}\n', char('c'*ones(1,length(estimator))));     % heading line
+			fprintf(fid, '\t\\hline\n\t');
+			fprintf(fid, 'RR with cov & MKL1 & MKL2 & BL1 & BL2 & BL3 & BL4\\\\\n');
+			fprintf(fid, '\t\\hline\n\t');
+			
+			% print NMSE
+			fprintf(fid, 'NMSE\t');
+			for i = 1:length(estimator)
+				fprintf(fid, ' & %2.2f', unnormalized_signal_nmse(i));
+			end
+			fprintf(fid, '\\\\\n\tRMSE(min)\t');
+			% print variance
+			for i = 1:length(estimator)
+				fprintf(fid, ' & %2.2f', rmse_in_minutes(i));
+			end
+			fprintf(fid, '\\\\\n');
+			fprintf(fid, '\t\\hline\n');
+			fprintf(fid, '\\end{tabular}');		% bottom line
+			%caption = Parameter.getTitle(graphGenerator,functionGenerator,sampler,estimator);
+			%fprintf(fid, caption);
+            
+            fclose(fid);
+			% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			
+			
+			F = [];
+			
         end
         
-        
+		
 	end
 	
 	% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

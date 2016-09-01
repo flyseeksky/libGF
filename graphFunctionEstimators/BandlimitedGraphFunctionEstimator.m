@@ -121,12 +121,11 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 				end
 				
 				m_PhiB = m_eigenvecs( m_positions(:,iRealization) , : );
-                if cond(m_PhiB)>1e6
-%cond(m_PhiB)                    
-%v_alphas = m_PhiB\m_samples(:,iRealization);     
-%keyboard
-%disp('discarding est')
-                    v_alphas = mean(m_samples(:,iRealization))*ones(size(m_PhiB,2),1);
+                if cond(m_PhiB)>1e6 % for cases where LS returns a very bad 
+					%                 estimate, the mean is returned
+					%                 instead. This improves considerably
+					%                 the performance of LS.                     
+					v_alphas = mean(m_samples(:,iRealization))*[1; zeros(size(m_PhiB,2),1)]/mean(m_eigenvecs(:,1));
                 else
                     v_alphas = m_PhiB\m_samples(:,iRealization);
                 end
@@ -144,12 +143,11 @@ classdef BandlimitedGraphFunctionEstimator < GraphFunctionEstimator
 			L_power = L^(2*obj.proxy_order);
 			
 			% svds(L_power(m_positions,m_positions),1,0) does not always work, even
-			% after setting a high tolerance
+			% after setting a high tolerance -> we use
 			v_svals = svd(L_power(m_positions,m_positions));
 			min_sval = min(v_svals);
 			omega_S = (  min_sval  )^(1/(2*obj.proxy_order));
-			
-			
+						
 			s_bw = sum(obj.v_laplacianEigenvalues_precomp <= omega_S);
 			
 		end
