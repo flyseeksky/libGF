@@ -1809,11 +1809,10 @@ classdef MultikernelSimulations < simFunctionSet
 			% 4. generate Kernel matrix
 			
 			h_r_inv_diffusion = LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray_diffusion);
-			h_r_inv_regularized = LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray_regularized);
+			h_r_inv_regularized = LaplacianKernel.regularizedKernelFunctionHandle(sigmaArray_regularized);
 			dictionary_diffusion = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_diffusion);			
 			dictionary_regularized = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_regularized);			
 			dictionary_both = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',[h_r_inv_diffusion, h_r_inv_regularized]);			
-			dictionary_legend = {'D1','D2','D3'};
 			%%
 			% *BOLD TEXT* );
 			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
@@ -1849,6 +1848,96 @@ classdef MultikernelSimulations < simFunctionSet
 		end
 		
 		
+		% MC simulation to compare multiple kernel dictionaries
+		%      NMSE vs S
+		% - generated signal is Exponentially decaying [anis2016proxies]
+		function F = compute_fig_3502(obj,niter)
+						
+			% 1. Graph and signal 
+			N = 100; % number of vertices			
+			B = 20; % bandwidth of the true function
+			
+			graphGenerator = ErdosRenyiGraphGenerator('s_edgeProbability', 0.25 ,'s_numberOfVertices',N);
+			graph = graphGenerator.realization;					
+			generator = ExponentiallyDecayingGraphFunctionGenerator('graph',graph,'s_bandwidth',B,'s_decayingRate',4);
+			%graphFunction = bandlimitedFunctionGenerator.realization();
+			%generator =  FixedGraphFunctionGenerator('graph',graph,'graphFunction',graphFunction);			
+	
+			%graph.plotFourierTransform(generator.realization());
+			
+			
+			% 2. Sampler
+			SNR = 10; % dB
+			S_vec = 10:5:100;
+			sampler = UniformGraphFunctionSampler('s_SNR',SNR);			
+			sampler = sampler.replicate('',[],'s_numberOfSamples',num2cell(S_vec));		
+						
+			% 3. Estimators
+			sigmaArray_diffusion = linspace(0.1,.5,5);
+			sigmaArray_regularized = linspace(0.1,.5,5);
+						
+			% 4. MKL function estimators	
+			% 4. generate Kernel matrix
+			
+			h_r_inv_diffusion = LaplacianKernel.diffusionKernelFunctionHandle(sigmaArray_diffusion);
+			h_r_inv_regularized = LaplacianKernel.regularizedKernelFunctionHandle(sigmaArray_regularized);
+			dictionary_diffusion = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_diffusion);			
+			dictionary_regularized = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',h_r_inv_regularized);			
+			dictionary_both = LaplacianKernel('m_laplacian',graph.getLaplacian(),'h_r_inv',[h_r_inv_diffusion, h_r_inv_regularized]);			
+			
+			%dictionary_diffusion.plotEigenvalueFunctions;
+			plot_dictionary_r_functions = 0;
+			if plot_dictionary_r_functions
+				subplot(3,1,1)
+				dictionary_diffusion.plotEigenvalueFunctions;
+				subplot(3,1,2)
+				dictionary_regularized.plotEigenvalueFunctions;
+				subplot(3,1,3)
+				dictionary_both.plotEigenvalueFunctions;
+			end
+			
+			
+			%%
+			% *BOLD TEXT* );
+			%mkl_estimator(1,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',5e-3,'ch_type','RKHS superposition');
+			%mkl_estimator(2,1) = MkrGraphFunctionEstimator('m_kernel',kG.getKernelMatrix(),'s_regularizationParameter',1e-2,'ch_type','RKHS superposition');
+			rs_estimators = MkrGraphFunctionEstimator('s_regularizationParameter',.05,'ch_type','RKHS superposition');
+			rs_estimators = rs_estimators.replicate('m_kernel',{dictionary_diffusion.getKernelMatrix(),dictionary_regularized.getKernelMatrix(),dictionary_both.getKernelMatrix()},'',{});
+			
+			ks_estimators = MkrGraphFunctionEstimator('s_regularizationParameter',.05,'ch_type','kernel superposition');
+			ks_estimators = ks_estimators.replicate('m_kernel',{dictionary_diffusion.getKernelMatrix(),dictionary_regularized.getKernelMatrix(),dictionary_both.getKernelMatrix()},'',{});
+			
+            est = [rs_estimators;ks_estimators];
+			
+			for k = 1:6
+				est(k,1).c_replicatedVerticallyAlong = {'ch_type'};			
+			end			
+			leg = Parameter.getLegend(generator,sampler,est);
+			for k = 1:6
+				leg{k} = [leg{k}, sprintf(', D%d',mod(k-1,3)+1) ];
+			end
+			
+
+			% Simulation
+			mse =  Simulate(generator,sampler,est,niter);
+			
+			% Representation			
+			F = F_figure('X',Parameter.getXAxis(generator,sampler,est),...
+                'Y',mse,'leg',leg,'leg_pos','northwest',...
+                'xlab','Number of observed vertices (S)','ylimit',[0 1.5],'xlimit',[min(Parameter.getXAxis(generator,sampler,est)),max(Parameter.getXAxis(generator,sampler,est))],...
+				'ylab','NMSE','caption',Parameter.getTitle(graphGenerator,generator,sampler,est),'styles',{'-v','-^','-x','--v','--^','--x'});
+			%F(2) = F_figure('Y',graph.getFourierTransform(graphFunction)','tit','Fourier transform of target signal','xlab','Freq. index','ylab','Function value');
+			
+		end
+		
+		% print version of 3502
+		function F = compute_fig_3503(obj,niter)
+			F = obj.load_F_structure(3502);
+			F.translation_table = {'kernel superposition','KS';'RKHS superposition','RS';'Bandlimited','BL';'Ass. B = cut-off freq.','cut-off'; ...
+				'BL, Ass.','BL for'};
+			F.leg_pos = 'northeast';
+			F.ylimit = [0 1];
+		end
 		
 		
 		

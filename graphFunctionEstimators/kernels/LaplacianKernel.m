@@ -53,6 +53,32 @@ obj.m_laplacian = graph.getLaplacian();
 			m_kernel = obj.getKernelMatrix;
 		end
 		
+		function plotEigenvalueFunctions(obj)
+			% represents r vs \lambda
+			
+			if ~iscell(obj.h_r_inv)
+				error('h_r_inv must be a cell array');
+			end
+			
+			if isempty(obj.m_laplacian)
+				error('Property m_laplacian cannot be empty');
+			end
+			
+			[V,D] = eig(obj.m_laplacian);
+			d = diag(D)';  d(1) = 0;                  % fix a bug since the first
+			% eigenvalue of L is always 0
+			N = size(obj.m_laplacian,1);
+			P = length(obj.h_r_inv);
+			m_rinvcurves = NaN(P,N);
+			for p = 1 : P
+				r = obj.h_r_inv{p};
+				m_rinvcurves(p,:) = r(d);
+			end
+			plot(d',m_rinvcurves','.-');
+			
+		end
+		
+		
     end
     
     % type specific methods
