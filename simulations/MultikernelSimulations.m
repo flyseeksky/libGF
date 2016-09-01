@@ -3,7 +3,8 @@
 %
 %  TSP paper figures: 1006, 3100 (print 3108), 3402 (print 3404), 3232,
 %  7001(print 7002)
-%  (table), 3234
+%  (table), 3234, for the revision 3502 (print 3503)
+%   
 %3305
 %
 
